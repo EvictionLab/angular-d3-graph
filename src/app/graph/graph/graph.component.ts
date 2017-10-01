@@ -1,4 +1,4 @@
-import { Component, OnInit, ElementRef, ViewChild, HostListener, Input, Output, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ElementRef, ViewChild, HostListener, Input, Output, AfterViewInit, OnChanges } from '@angular/core';
 
 import { Graph } from '../graph';
 
@@ -7,15 +7,12 @@ import { Graph } from '../graph';
   templateUrl: './graph.component.html',
   styleUrls: ['./graph.component.css']
 })
-export class GraphComponent implements OnInit, AfterViewInit {
+export class GraphComponent implements OnInit, AfterViewInit, OnChanges {
   @ViewChild('graphContainer') element: ElementRef;
   @Input() settings;
   @Input() data;
+  @Input() type;
   graph: Graph;
-  // data = [
-  //   [ { x: 0, y: 10 }, { x: 1, y: 35 }, { x: 2, y: 20 }, { x: 3, y: 45 }, { x: 4, y: 10 } ],
-  //   [ { x: 0, y: 20 }, { x: 1, y: 15 }, { x: 2, y: 40 }, { x: 3, y: 35 }, { x: 4, y: 45 } ]
-  // ];
 
   constructor() { }
 
@@ -23,9 +20,17 @@ export class GraphComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit() {
     console.log(this.element);
-    this.graph = new Graph(this.element.nativeElement, this.settings);
-    if (this.data) {
-      this.graph.addLines(this.data);
+    // this.graph = new Graph(this.element.nativeElement, this.data, this.settings);
+  }
+
+  ngOnChanges(changes) {
+    console.log('value changed', changes);
+    if (changes.data && this.element) {
+      if (this.graph) {
+        this.graph.updateData(changes.data.currentValue);
+      } else {
+        this.graph = new Graph(this.element.nativeElement, changes.data.currentValue, this.settings);
+      }
     }
   }
 

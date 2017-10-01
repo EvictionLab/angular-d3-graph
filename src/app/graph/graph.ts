@@ -1,4 +1,5 @@
 import { select } from 'd3-selection';
+import { transition } from 'd3-transition';
 import { scaleLinear } from 'd3-scale';
 import { axisRight, axisBottom, axisLeft, axisTop } from 'd3-axis';
 import { extent } from 'd3-array';
@@ -31,10 +32,17 @@ export class Graph {
                 tickFormat: ',.0f',
                 invert: false
             }
+        },
+        transition: transition('default').duration(2000),
+        zoom: {
+            enabled: true,
+            min: 1,
+            max: 10
         }
     };
     data: any = [];
     margin;
+    private zoomBehaviour;
     private width;
     private height;
     private svg;
@@ -42,134 +50,60 @@ export class Graph {
     private scales;
     private graphElements = {};
 
-    constructor(el, settings) {
+    constructor(el, data, settings) {
         this.el = el;
         this.d3el = select(this.el);
         this.create(settings);
+        if (data) { this.updateData(data); }
     }
 
     /**
-     * initializes the SVG element for the graph
-     * @param settings graph settings
+     * Sets the data for the graph and updates the view
+     * @param data new data for the graph
      */
-    create(settings = {}): Graph {
-        this.settings = _merge(this.settings, settings);
-        this.width = this.el.clientWidth - this.settings.margin.left - this.settings.margin.right;
-        this.height =
-          this.el.getBoundingClientRect().height - this.settings.margin.top - this.settings.margin.bottom;
-        // build the SVG if it doesn't exist yet
-        if (!this.svg && this.d3el) {
-            this.svg = this.createSVG();
-            this.container = this.createContainer(this.svg, {
-                width: this.width,
-                height: this.height,
-                top: this.settings.margin.top,
-                left: this.settings.margin.left
-            }).container;
-        }
-        return this;
+    updateData(data) {
+        this.data = data;
+        this.updateView();
     }
 
     /**
      * Adds axis and lines
      */
-    updateView() {
-        this.container.html('');
+    updateView(transform?) {
+        if (!transform) { transform = zoomTransform(this.svg.node()); }
         this.scales = this.getScales();
-        this.graphElements = {};
-        this.addAxis(this.container, { id: 'x-axis', ...this.settings.axis.x })
-            .addAxis(this.container, { id: 'y-axis', ...this.settings.axis.y })
-            .addElement(uuid(), this.createLines(this.container));
-    }
-
-    /**
-     * Adds a parent <g> element to the graph
-     * @param parent parent element
-     * @param settings  container settings { top, left, width, height }
-     */
-    addContainer(parent, settings) {
-        this.addElement(settings.id, this.createContainer(parent, settings));
-        return this;
-    }
-
-    addAxis(parent, settings: any = {}) {
-        this.addElement(settings.id, this.createAxis(parent, settings));
-        return this;
-    }
-
-    addLines(data, settings: any = {}) {
-        this.data = data;
-        this.updateView();
-        return this;
-    }
-
-    addElement(id: string = uuid(), graphElement: GraphElement) {
-        this.graphElements[id] = graphElement;
-        this.graphElements[id].render();
-        return this.graphElements[id];
-    }
-
-    /**
-     * Gets and element by ID
-     * @param id 
-     */
-    getElement(id: string): GraphElement {
-        return this.graphElements[id];
-    }
-
-    /**
-     * Remove a graph element by ID
-     * @param id 
-     */
-    removeElement(id: string) {
-        if (this.graphElements.hasOwnProperty(id)) {
-            this.graphElements[id].remove();
-            delete this.graphElements[id];
-        }
-        return this;
+        this.renderAxis(this.settings.axis.x, transform)
+            .renderAxis(this.settings.axis.y, transform)
+            .renderLines(transform);
     }
 
     /**
      * Clears out anything in the root container
      */
-    reset() {
-        this.d3el.html('');
-    }
+    clear() { this.d3el.html(''); }
 
     /**
-     * Creates the svg element
+     * Transitions the graph to the range provided by x1 and x2
      */
-    createSVG() {
-        this.reset();
-        return this.d3el.append('svg')
-          .attr('width', this.width + this.settings.margin.left + this.settings.margin.right)
-          .attr('height', this.height + this.settings.margin.top + this.settings.margin.bottom);
-    }
-
-    /**
-     * Create a container group
-     * @param container a parent container element
-     * @param settings { top, left, width, height }
-     */
-    createContainer(container, settings: any = {}) {
-        settings.width = settings.width || this.width;
-        settings.height = settings.height || this.height;
-        const selection = container.append('g')
-            .attr('width', settings.width)
-            .attr('height', settings.height)
-            .attr('transform', 'translate(' + settings.left + ',' + settings.top + ')');
-        const render = (transform = zoomIdentity) => {
-            const scale = transform.rescaleX(this.scales.x);
-            selection.attr('width', settings.width)
-                .attr('height', settings.height);
-        };
-        return new GraphElement(selection, render);
+    setVisibleRange(x1, x2, zoomOptions = {}): Graph {
+        const options =  { duration: 2000, margin: 0, maxZoom: 3, ...zoomOptions };
+        const pxWidth = Math.abs(this.scales.x(x1) - this.scales.x(x2));
+        const spaceAvailable = this.width - options.margin;
+        const scaleAmount = Math.min((spaceAvailable / pxWidth), options.maxZoom);
+        const scaledWidth = pxWidth * scaleAmount;
+        const emptySpace = ((spaceAvailable - scaledWidth)  / 2);
+        const newTransform = zoomIdentity.scale(scaleAmount)
+            .translate((-1 * this.scales.x(x2)) + (emptySpace / scaleAmount), 0);
+        this.svg.transition()
+            .duration(options.duration)
+            .call(this.zoomBehaviour.transform, newTransform);
+        return this;
     }
 
     /**
      * Creates an axis for graph element
      */
-    createAxis(container, settings): GraphElement {
+    renderAxis(settings, transform = zoomIdentity): Graph {
         const axisType =
             (settings.position === 'top' || settings.position === 'bottom') ? 'x' : 'y';
         const axisFunc = this.getAxisGenerator(settings.position);
@@ -177,52 +111,106 @@ export class Graph {
             .ticks(settings.ticks)
             .tickSize(settings.tickSize)
             .tickFormat(format(settings.tickFormat));
+        const scale = axisType === 'x' ? transform.rescaleX(this.scales.x) : transform.rescaleY(this.scales.y);
 
-        const selection = container.append('g')
-            .attr('class', axisType + ' axis')
-            .attr('transform', this.getAxisTransform(settings.position));
+        this.container.selectAll('g.axis-' + axisType)
+            .attr('transform', this.getAxisTransform(settings.position))
+            .call(axisGenerator.scale(scale));
+        return this;
+    }
 
-        const render = (transform = zoomIdentity) => {
-            const scale = axisType === 'x' ? transform.rescaleX(this.scales.x) : transform.rescaleY(this.scales.y);
-            selection.attr('transform', this.getAxisTransform(settings.position));
-            selection.call(axisGenerator.scale(scale));
+    /** 
+     * Renders lines for any data in the data set.
+     */
+    renderLines(transform = zoomIdentity) {
+        const extent = this.getExtent();
+        const lines = this.container.selectAll('.line').data(this.data.map((d) => d.data));
+        const flatLine = line()
+            .defined((d: any) => !isNaN(d[this.settings.props.y]))
+            .x((d: any, index: any, da: any) => this.scales.x(d.x))
+            .y(this.scales.y(extent.y[0]));
+
+        const valueLine = line().defined((d: any) => !isNaN(d[this.settings.props.y]))
+            .x((d: any, index: any, da: any) => this.scales.x(d.x))
+            .y((d: any) => this.scales.y(d[this.settings.props.y]));
+
+        const update = () => {
+            lines
+                .attr('class', (d, i) => 'line line-' + i)
+                .attr('transform', 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)')
+                .attr('vector-effect', 'non-scaling-stroke')
+                .transition().duration(2000)
+                    .attr('d', valueLine);
         };
-        return new GraphElement(selection, render);
+
+        // transition out lines no longer present
+        lines.exit()
+            .attr('class', (d, i) => 'line line-exit line-' + i)
+            .transition().duration(2000)
+                .attr('d', flatLine)
+                .remove();
+
+        // update lines with new data
+        update();
+
+        // add lines for new data
+        lines.enter().append('path')
+            .attr('class', (d, i) => 'line line-enter line-' + i)
+            .attr('transform', 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)')
+            .attr('vector-effect', 'non-scaling-stroke')
+            .attr('d', flatLine)
+            .transition().duration(2000)
+                .attr('d', valueLine);
     }
 
     /**
-     * Creates the line graph element
+     * Transitions back to the default zoom for the graph
      */
-    createLines(container, settings: any = {}): GraphElement {
-        const selection = container.selectAll('.line')
-            .data(this.data)
-            .enter().append('path')
-                .attr('class', (d, i) => 'line line-' + i)
-                .attr('d', line()
-                    .defined((d: any) => !isNaN(d[this.settings.props.y]))
-                    .x((d: any, index: any, da: any) => {
-                        console.log('w', d.x, this.scales.x(d.x));
-                        return this.scales.x(d.x);
-                    })
-                    .y((d: any) => this.scales.y(d[this.settings.props.y]))
-                );
-        const render = (transform = zoomIdentity) => {
-            selection.attr('transform', 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)');
-            selection.attr('vector-effect', 'non-scaling-stroke');
-        };
-        return new GraphElement(selection, render);
+    resetZoom(): Graph {
+        this.svg.transition()
+            .duration(2000)
+            .call(this.zoomBehaviour.transform, zoomIdentity);
+        return this;
     }
 
-    /*
-    * Set the scales used to map data values to screen positions
-    */
-    getScales() {
-        const ranges = this.getRange();
-        const extents = this.getExtent(this.data);
-        return {
-            x: scaleLinear().range(ranges.x).domain(extents.x),
-            y: scaleLinear().range(ranges.y).domain(extents.y)
-        };
+    /**
+     * initializes the SVG element for the graph
+     * @param settings graph settings
+     */
+    private create(settings = {}): Graph {
+        this.settings = _merge(this.settings, settings);
+        this.width = this.el.clientWidth - this.settings.margin.left - this.settings.margin.right;
+        this.height =
+          this.el.getBoundingClientRect().height - this.settings.margin.top - this.settings.margin.bottom;
+        // build the SVG if it doesn't exist yet
+        if (!this.svg && this.d3el) {
+            this.svg = this.d3el.append('svg')
+                .attr('width', this.width + this.settings.margin.left + this.settings.margin.right)
+                .attr('height', this.height + this.settings.margin.top + this.settings.margin.bottom);
+        }
+        this.container = this.svg.append('g')
+            .attr('class', 'graph-container')
+            .attr('width', this.width)
+            .attr('height', this.height)
+            .attr('transform', 'translate(' + this.settings.margin.left + ',' + this.settings.margin.top + ')');
+        this.container.append('g').attr('class', 'axis axis-x');
+        this.container.append('g').attr('class', 'axis axis-y');
+        if (this.settings.zoom.enabled) { this.addZoomBehaviour(); }
+        return this;
+    }
+
+    /**
+     * Creates the zoom behaviour for the graph then sets it up based on
+     * dimensions and settings
+     */
+    private addZoomBehaviour(): Graph {
+        this.zoomBehaviour = zoom()
+            .scaleExtent([ this.settings.zoom.min, this.settings.zoom.max])
+            .translateExtent([[0, 0], [this.width, this.height]])
+            .extent([[0, 0], [this.width, this.height]])
+            .on('zoom', this.updateView.bind(this));
+        this.svg.call(this.zoomBehaviour);
+        return this;
     }
 
     /**
@@ -277,17 +265,29 @@ export class Graph {
      * Gets the x and y extent of the data
      * @param data
      */
-    private getExtent(data: any = []): { x: Array<number>, y: Array<number> } {
-        if (!data.length) { return { x: [0, 1], y: [0, 1] }; }
+    private getExtent(): { x: Array<number>, y: Array<number> } {
+        if (!this.data.length) { return { x: [0, 1], y: [0, 1] }; }
         const extents: any = {};
-        for (const dp of data) {
+        for (const dp of this.data) {
             const setExtent = {
-                x: extent(dp, (d) => parseFloat(d[this.settings.props.x])),
-                y: extent(dp, (d) => parseFloat(d[this.settings.props.y]))
+                x: extent(dp.data, (d) => parseFloat(d[this.settings.props.x])),
+                y: extent(dp.data, (d) => parseFloat(d[this.settings.props.y]))
             };
             extents.x = extents.x ? extent([...extents.x, ...setExtent.x]) : setExtent.x;
             extents.y = extents.y ? extent([...extents.y, ...setExtent.y]) : setExtent.y;
         }
         return extents;
+    }
+
+    /**
+     * Set the scales used to map data values to screen positions
+     */
+    private getScales() {
+        const ranges = this.getRange();
+        const extents = this.getExtent();
+        return {
+            x: scaleLinear().range(ranges.x).domain(extents.x),
+            y: scaleLinear().range(ranges.y).domain(extents.y)
+        };
     }
 }
