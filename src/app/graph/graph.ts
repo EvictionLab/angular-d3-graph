@@ -33,8 +33,8 @@ export class Graph {
     private d3el;
     private container;
     private dataContainer;
+    private clip;
     private scales;
-    private graphElements = {};
     private transform = zoomIdentity;
 
     constructor(el, data, settings) {
@@ -47,6 +47,7 @@ export class Graph {
     /**
      * Sets the data for the graph and updates the view
      * @param data new data for the graph
+     * @param type override the type of graph to render
      */
     update(data, type?) {
         this.setType(type ? type : this.detectTypeFromData(data));
@@ -57,23 +58,18 @@ export class Graph {
     /**
      * Adds axis and lines
      */
-    updateView() {
+    updateView(...args) {
         this.transform = zoomTransform(this.svg.node()) || zoomIdentity;
         this.scales = this.getScales();
-        this.renderAxis(this.settings.axis.x, this.transform, arguments.length > 0)
-            .renderAxis(this.settings.axis.y, this.transform, arguments.length > 0);
+        this.renderAxis(this.settings.axis.x, this.transform, args.length > 0)
+            .renderAxis(this.settings.axis.y, this.transform, args.length > 0);
         this.type === 'line' ? this.renderLines() : this.renderBars();
     }
 
     /**
-     * Clears out anything in the root container
-     */
-    clear() { this.svg.remove(); }
-
-    /**
      * Transitions the graph to the range provided by x1 and x2
      */
-    setVisibleRange(x1, x2, zoomOptions = {}): Graph {
+    setVisibleRange(x1, x2): Graph {
         const pxWidth = Math.abs(this.scales.x(x1) - this.scales.x(x2));
         const spaceAvailable = this.width;
         const scaleAmount = Math.min((spaceAvailable / pxWidth), this.settings.zoom.max);
@@ -88,6 +84,11 @@ export class Graph {
         return this;
     }
 
+    /**
+     * Sets the type of graph, 'line' or 'bar'.  If switching from one type to another,
+     * the render functions for the old type are called to clear out any rendered data.
+     * @param type type of graph to switch to
+     */
     setType(type: string) {
         if (this.type !== type) {
             const oldType = this.type;
@@ -113,15 +114,14 @@ export class Graph {
         // if transition is programatically triggered, transition to the new axis position
         if (blockTransition) {
             this.container.selectAll('g.axis-' + axisType)
-                .attr('transform', this.getAxisTransform(settings.position))
+                // .attr('transform', this.getAxisTransform(settings.position))
                 .call(axisGenerator.scale(scale));
         } else {
             this.container.selectAll('g.axis-' + axisType)
-                .attr('transform', this.getAxisTransform(settings.position))
+                // .attr('transform', this.getAxisTransform(settings.position))
                 .transition().duration(this.settings.transition.duration)
                 .call(axisGenerator.scale(scale));
         }
-
         return this;
     }
 
@@ -233,34 +233,48 @@ export class Graph {
         this.settings = _merge(this.settings, settings);
     }
 
+    setView() {
+        this.width = this.el.clientWidth - this.settings.margin.left - this.settings.margin.right;
+        this.height =
+          this.el.getBoundingClientRect().height - this.settings.margin.top - this.settings.margin.bottom;
+        this.svg
+            .attr('width', this.width + this.settings.margin.left + this.settings.margin.right)
+            .attr('height', this.height + this.settings.margin.top + this.settings.margin.bottom);
+        this.container
+            .attr('width', this.width)
+            .attr('height', this.height);
+        this.dataContainer
+            .attr('width', this.width)
+            .attr('height', this.height);
+        this.clip
+            .attr('width', this.width)
+            .attr('height', this.height);
+        this.svg.selectAll('g.axis-x')
+            .attr('transform', this.getAxisTransform(this.settings.axis.x.position));
+        this.svg.selectAll('g.axis-y')
+            .attr('transform', this.getAxisTransform(this.settings.axis.y.position));
+        return this;
+    }
+
     /**
      * initializes the SVG element for the graph
      * @param settings graph settings
      */
     private create(settings = {}): Graph {
         this.updateSettings(settings);
-        this.width = this.el.clientWidth - this.settings.margin.left - this.settings.margin.right;
-        this.height =
-          this.el.getBoundingClientRect().height - this.settings.margin.top - this.settings.margin.bottom;
         // build the SVG if it doesn't exist yet
         if (!this.svg && this.d3el) {
-            this.svg = this.d3el.append('svg')
-                .attr('width', this.width + this.settings.margin.left + this.settings.margin.right)
-                .attr('height', this.height + this.settings.margin.top + this.settings.margin.bottom);
-            this.svg.append('defs')
+            this.svg = this.d3el.append('svg');
+            this.clip = this.svg.append('defs')
                 .append('clipPath')
                 .attr('id', 'data-container')
                     .append('rect')
                     .attr('x', 0)
-                    .attr('y', 0)
-                    .attr('width', this.width)
-                    .attr('height', this.height);
+                    .attr('y', 0);
         }
         // containers for axis
         this.container = this.svg.append('g')
             .attr('class', 'graph-container')
-            .attr('width', this.width)
-            .attr('height', this.height)
             .attr('transform', 'translate(' + this.settings.margin.left + ',' + this.settings.margin.top + ')');
         this.container.append('g').attr('class', 'axis axis-x');
         this.container.append('g').attr('class', 'axis axis-y');
@@ -268,9 +282,8 @@ export class Graph {
         this.dataContainer = this.svg.append('g')
             .attr('clip-path', 'url(#data-container)')
             .attr('class', 'data-container')
-            .attr('width', this.width)
-            .attr('height', this.height)
             .attr('transform', 'translate(' + this.settings.margin.left + ',' + this.settings.margin.top + ')');
+        this.setView();
         this.addZoomBehaviour();
         return this;
     }
@@ -375,7 +388,7 @@ export class Graph {
     }
 
     /**
-     * Set the scales used to map data values to screen positions
+     * Returns the scales based on the graph type
      */
     private getScales() {
         if (this.type === 'line') {

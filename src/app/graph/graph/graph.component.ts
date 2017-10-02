@@ -36,7 +36,9 @@ export class GraphComponent implements OnInit, AfterViewInit, OnChanges {
   }
 
   @HostListener('window:resize', ['$event'])
-  onResize(e) {}
+  onResize(e) {
+    this.graph.setView().updateView('no-transition');
+  }
 
   onMouseMove() {}
 
