@@ -20,9 +20,7 @@ export class GraphComponent implements OnInit, AfterViewInit, OnChanges {
 
   ngOnInit() {}
 
-  ngAfterViewInit() {
-    console.log(this.element);
-  }
+  ngAfterViewInit() {}
 
   ngOnChanges(changes) {
     if (changes.data && this.element) {
@@ -38,7 +36,6 @@ export class GraphComponent implements OnInit, AfterViewInit, OnChanges {
   }
 
   @HostListener('window:resize', ['$event'])
-
   onResize(e) {}
 
   onMouseMove() {}

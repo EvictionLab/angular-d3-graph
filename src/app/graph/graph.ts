@@ -55,13 +55,11 @@ export class Graph {
     /**
      * Adds axis and lines
      */
-    updateView(transform?) {
-        // console.log('updateView', this, transform);
-        if (!transform) { transform = zoomTransform(this.svg.node()); }
-        this.transform = transform;
+    updateView() {
+        this.transform = zoomTransform(this.svg.node());
         this.scales = this.getScales();
-        this.renderAxis(this.settings.axis.x)
-            .renderAxis(this.settings.axis.y)
+        this.renderAxis(this.settings.axis.x, this.transform, arguments.length > 0)
+            .renderAxis(this.settings.axis.y, this.transform, arguments.length > 0)
             .renderLines();
     }
 
@@ -91,7 +89,7 @@ export class Graph {
     /**
      * Creates an axis for graph element
      */
-    renderAxis(settings, transform = this.transform): Graph {
+    renderAxis(settings, transform = this.transform, blockTransition = false): Graph {
         const axisType =
             (settings.position === 'top' || settings.position === 'bottom') ? 'x' : 'y';
         const axisFunc = this.getAxisGenerator(settings.position);
@@ -101,9 +99,17 @@ export class Graph {
             .tickFormat(format(settings.tickFormat));
         const scale = axisType === 'x' ? transform.rescaleX(this.scales.x) : this.scales.y;
 
-        this.container.selectAll('g.axis-' + axisType)
-            .attr('transform', this.getAxisTransform(settings.position))
-            .call(axisGenerator.scale(scale));
+        if (blockTransition) {
+            this.container.selectAll('g.axis-' + axisType)
+                .attr('transform', this.getAxisTransform(settings.position))
+                .call(axisGenerator.scale(scale));
+        } else {
+            this.container.selectAll('g.axis-' + axisType)
+                .attr('transform', this.getAxisTransform(settings.position))
+                .transition().duration(this.settings.transition.duration)
+                .call(axisGenerator.scale(scale));
+        }
+
         return this;
     }
 
