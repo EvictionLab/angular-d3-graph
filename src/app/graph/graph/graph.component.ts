@@ -12,6 +12,8 @@ export class GraphComponent implements OnInit, AfterViewInit, OnChanges {
   @Input() settings;
   @Input() data;
   @Input() type;
+  @Input() x1;
+  @Input() x2;
   graph: Graph;
 
   constructor() { }
@@ -20,17 +22,18 @@ export class GraphComponent implements OnInit, AfterViewInit, OnChanges {
 
   ngAfterViewInit() {
     console.log(this.element);
-    // this.graph = new Graph(this.element.nativeElement, this.data, this.settings);
   }
 
   ngOnChanges(changes) {
-    console.log('value changed', changes);
     if (changes.data && this.element) {
       if (this.graph) {
         this.graph.updateData(changes.data.currentValue);
       } else {
         this.graph = new Graph(this.element.nativeElement, changes.data.currentValue, this.settings);
       }
+    }
+    if ((changes.x1 || changes.x2) && this.element && (this.x1 && this.x2)) {
+      this.graph.setVisibleRange(this.x1, this.x2);
     }
   }
 
