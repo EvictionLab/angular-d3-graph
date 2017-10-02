@@ -1,9 +1,9 @@
 import { select } from 'd3-selection';
 import { transition } from 'd3-transition';
-import { scaleLinear } from 'd3-scale';
+import { scaleLinear, scaleBand } from 'd3-scale';
 import { easePoly } from 'd3-ease';
 import { axisRight, axisBottom, axisLeft, axisTop } from 'd3-axis';
-import { extent } from 'd3-array';
+import { extent, max } from 'd3-array';
 import { format } from 'd3-format';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { line } from 'd3-shape';
@@ -26,6 +26,7 @@ export class Graph {
         transition: { ease: easePoly, duration: 1000 },
         zoom: { enabled: false, min: 1, max: 10 }
     };
+    private type;
     private zoomBehaviour;
     private width;
     private height;
@@ -40,14 +41,15 @@ export class Graph {
         this.el = el;
         this.d3el = select(this.el);
         this.create(settings);
-        if (data) { this.updateData(data); }
+        if (data) { this.update(data); }
     }
 
     /**
      * Sets the data for the graph and updates the view
      * @param data new data for the graph
      */
-    updateData(data) {
+    update(data, type?) {
+        this.setType(type ? type : this.detectTypeFromData(data));
         this.data = data;
         this.updateView();
     }
@@ -56,11 +58,11 @@ export class Graph {
      * Adds axis and lines
      */
     updateView() {
-        this.transform = zoomTransform(this.svg.node());
+        this.transform = zoomTransform(this.svg.node()) || zoomIdentity;
         this.scales = this.getScales();
         this.renderAxis(this.settings.axis.x, this.transform, arguments.length > 0)
-            .renderAxis(this.settings.axis.y, this.transform, arguments.length > 0)
-            .renderLines();
+            .renderAxis(this.settings.axis.y, this.transform, arguments.length > 0);
+        this.type === 'line' ? this.renderLines() : this.renderBars();
     }
 
     /**
@@ -86,19 +88,29 @@ export class Graph {
         return this;
     }
 
+    setType(type: string) {
+        if (this.type !== type) {
+            const oldType = this.type;
+            this.type = type;
+            if (oldType === 'line') { this.renderLines(); }
+            if (oldType === 'bar') { this.renderBars(); }
+        }
+    }
+
     /**
      * Creates an axis for graph element
      */
     renderAxis(settings, transform = this.transform, blockTransition = false): Graph {
         const axisType =
             (settings.position === 'top' || settings.position === 'bottom') ? 'x' : 'y';
-        const axisFunc = this.getAxisGenerator(settings.position);
-        const axisGenerator = axisFunc(this.scales[axisType])
-            .ticks(settings.ticks)
-            .tickSize(settings.tickSize)
-            .tickFormat(format(settings.tickFormat));
-        const scale = axisType === 'x' ? transform.rescaleX(this.scales.x) : this.scales.y;
+        const axisGenerator = this.getAxisGenerator(settings);
+        // if line graph, scale axis based on transform
+        const scale = (axisType === 'x') ?
+            (this.type === 'line' ? transform.rescaleX(this.scales.x) : this.scales.x) :
+            this.scales.y;
 
+        // if called from a mouse event (blockTransition = true), call the axis generator
+        // if transition is programatically triggered, transition to the new axis position
         if (blockTransition) {
             this.container.selectAll('g.axis-' + axisType)
                 .attr('transform', this.getAxisTransform(settings.position))
@@ -117,7 +129,8 @@ export class Graph {
      * Render bars for the data
      */
     renderBars() {
-        const bars = this.dataContainer.selectAll('.bars').data(this.data.map((d) => d.data));
+        const barData = (this.type === 'bar' ? this.data : []);
+        const bars = this.dataContainer.selectAll('.bar').data(barData, (d) => d.id);
 
         // transition out bars no longer present
         bars.exit()
@@ -129,32 +142,36 @@ export class Graph {
                 .attr('y', this.height)
                 .remove();
 
-        // update bars with new data
-        bars.attr('class', (d, i) => 'bar bar-' + i)
-            .attr('height', (d) => this.height - this.scales.y(d[this.settings.props.y]))
-            .attr('y', (d) => this.scales.y(d[this.settings.props.y]))
-            .attr('x', (d) => this.scales.x(d[this.settings.props.x]))
-            .attr('width', this.scales.x.bandwidth());
+        if (this.type === 'bar') {
+            // update bars with new data
+            bars.attr('class', (d, i) => 'bar bar-' + i)
+                .attr('height', (d) => this.height - this.scales.y(d.data[0][this.settings.props.y]))
+                .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]))
+                .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
+                .attr('width', this.scales.x.bandwidth());
 
-        // add bars for new data
-        bars.enter().append('rect')
-            .attr('class', (d, i) => 'bar bar-enter bar-' + i)
-            .attr('x', (d) => this.scales.x(d[this.settings.props.x]))
-            .attr('y', this.height)
-            .attr('width', this.scales.x.bandwidth())
-            .attr('height', 0)
-            .transition().ease(this.settings.transition.ease)
-                .duration(this.settings.transition.duration)
-                .attr('height', (d) => this.height - this.scales.y(d[this.settings.props.y]))
-                .attr('y', (d) => this.scales.y(d[this.settings.props.y]));
+            // add bars for new data
+            bars.enter().append('rect')
+                .attr('class', (d, i) => 'bar bar-enter bar-' + i)
+                .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
+                .attr('y', this.height)
+                .attr('width', this.scales.x.bandwidth())
+                .attr('height', 0)
+                .transition().ease(this.settings.transition.ease)
+                    .duration(this.settings.transition.duration)
+                    .attr('height', (d) => this.height - this.scales.y(d.data[0][this.settings.props.y]))
+                    .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]));
+        }
+        return this;
     }
 
     /**
      * Renders lines for any data in the data set.
      */
     renderLines(transform = this.transform) {
+        const lineData = (this.type === 'line' ? this.data : []);
         const extent = this.getExtent();
-        const lines = this.dataContainer.selectAll('.line').data(this.data, (d) => d.id);
+        const lines = this.dataContainer.selectAll('.line').data(lineData, (d) => d.id);
         const flatLine = line()
             .defined((d: any) => !isNaN(d[this.settings.props.y]))
             .x((d: any, index: any, da: any) => this.scales.x(d.x))
@@ -183,19 +200,22 @@ export class Graph {
                 .attr('d', (d) => flatLine(d.data))
                 .remove();
 
-        // update lines with new data
-        update();
+        if (this.type === 'line') {
+            // update lines with new data
+            update();
 
-        // add lines for new data
-        lines.enter().append('path')
-            .attr('class', (d, i) => 'line line-enter line-' + i)
-            .attr('transform', 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)')
-            .attr('vector-effect', 'non-scaling-stroke')
-            .attr('d', (d) => flatLine(d.data))
-            .transition()
-                .ease(this.settings.transition.ease)
-                .duration(this.settings.transition.duration)
-                .attr('d', (d) => valueLine(d.data));
+            // add lines for new data
+            lines.enter().append('path')
+                .attr('class', (d, i) => 'line line-enter line-' + i)
+                .attr('transform', 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)')
+                .attr('vector-effect', 'non-scaling-stroke')
+                .attr('d', (d) => flatLine(d.data))
+                .transition()
+                    .ease(this.settings.transition.ease)
+                    .duration(this.settings.transition.duration)
+                    .attr('d', (d) => valueLine(d.data));
+        }
+        return this;
     }
 
     /**
@@ -209,12 +229,16 @@ export class Graph {
         return this;
     }
 
+    updateSettings(settings = {}) {
+        this.settings = _merge(this.settings, settings);
+    }
+
     /**
      * initializes the SVG element for the graph
      * @param settings graph settings
      */
     private create(settings = {}): Graph {
-        this.settings = _merge(this.settings, settings);
+        this.updateSettings(settings);
         this.width = this.el.clientWidth - this.settings.margin.left - this.settings.margin.right;
         this.height =
           this.el.getBoundingClientRect().height - this.settings.margin.top - this.settings.margin.bottom;
@@ -285,21 +309,40 @@ export class Graph {
     }
 
     /**
-     * returns the axis generator based on position
-     * @param position where the axis should appear on the graph (top, bottom, left, right)
+     * returns the axis generator based the axis settings and graph type
+     * @param settings settings for the axis, including position and tick formatting
      */
-    private getAxisGenerator(position: string) {
-        switch (position) {
+    private getAxisGenerator(settings: any) {
+        let axisGen;
+        let scale;
+        switch (settings.position) {
             case 'top':
-                return axisTop;
+                axisGen = axisTop;
+                scale = this.scales.x;
+                break;
             case 'bottom':
-                return axisBottom;
+                axisGen = axisBottom;
+                scale = this.scales.x;
+                break;
             case 'left':
-                return axisLeft;
+                axisGen = axisLeft;
+                scale = this.scales.y;
+                break;
             case 'right':
-                return axisRight;
-            default:
-                return axisBottom;
+                axisGen = axisRight;
+                scale = this.scales.y;
+                break;
+        }
+        if (this.type === 'line') {
+            return axisGen(scale).ticks(settings.ticks)
+                .tickSize(settings.tickSize)
+                .tickFormat(format(settings.tickFormat));
+        } else if (this.type === 'bar') {
+            if (settings.position === 'top' || settings.position === 'bottom') {
+                return axisGen(scale);
+            } else if (settings.position === 'left' || settings.position === 'right') {
+                return axisGen(scale).ticks(settings.ticks);
+            }
         }
     }
 
@@ -335,11 +378,36 @@ export class Graph {
      * Set the scales used to map data values to screen positions
      */
     private getScales() {
-        const ranges = this.getRange();
-        const extents = this.getExtent();
-        return {
-            x: scaleLinear().range(ranges.x).domain(extents.x),
-            y: scaleLinear().range(ranges.y).domain(extents.y)
-        };
+        if (this.type === 'line') {
+            const ranges = this.getRange();
+            const extents = this.getExtent();
+            return {
+                x: scaleLinear().range(ranges.x).domain(extents.x),
+                y: scaleLinear().range(ranges.y).domain(extents.y)
+            };
+        } else if (this.type === 'bar') {
+            const scales = {
+                x: scaleBand().rangeRound([0, this.width]).padding(0.25),
+                y: scaleLinear().rangeRound([this.height, 0])
+            };
+            scales.x.domain(this.data.map((d) => d.data[0][this.settings.props.x]));
+            scales.y.domain([0, max(this.data, (d: any) => parseFloat(d.data[0][this.settings.props.y]))]);
+            return scales;
+        }
+    }
+
+    /**
+     * Attempts to determine the type of graph based on the provided data.
+     * If each item in the data set only has one data point, it assumes it is a bar graph
+     * Anything else is a line graph.
+     * @param data The dataset for the graph
+     */
+    private detectTypeFromData(data): string {
+        for (let i = 0; i < data.length; i++) {
+            if (data[i].data.length !== 1) {
+                return 'line';
+            }
+        }
+        return 'bar';
     }
 }

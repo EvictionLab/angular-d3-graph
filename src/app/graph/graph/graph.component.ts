@@ -25,7 +25,7 @@ export class GraphComponent implements OnInit, AfterViewInit, OnChanges {
   ngOnChanges(changes) {
     if (changes.data && this.element) {
       if (this.graph) {
-        this.graph.updateData(changes.data.currentValue);
+        this.graph.update(changes.data.currentValue);
       } else {
         this.graph = new Graph(this.element.nativeElement, changes.data.currentValue, this.settings);
       }
