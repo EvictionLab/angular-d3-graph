@@ -1,9 +1,9 @@
-import { select } from 'd3-selection';
+import { select, mouse } from 'd3-selection';
 import { transition } from 'd3-transition';
 import { scaleLinear, scaleBand } from 'd3-scale';
 import { easePoly } from 'd3-ease';
 import { axisRight, axisBottom, axisLeft, axisTop } from 'd3-axis';
-import { extent, max } from 'd3-array';
+import { extent, max, bisector } from 'd3-array';
 import { format } from 'd3-format';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { line } from 'd3-shape';
@@ -20,8 +20,8 @@ export class Graph {
         props: { x: 'x', y: 'y' },
         margin: { left: 40, right: 10, top: 10, bottom: 40 },
         axis: {
-            x: { position: 'bottom', ticks: 5, tickSize: 5, tickFormat: ',.0f', invert: false },
-            y: { position: 'left', ticks: 5, tickSize: 5, tickFormat: ',.0f', invert: false }
+            x: { position: 'bottom', label: 'x', ticks: 5, tickSize: 5, tickFormat: ',.0f', invert: false },
+            y: { position: 'left', label: 'y', ticks: 5, tickSize: 5, tickFormat: ',.0f', invert: false }
         },
         transition: { ease: easePoly, duration: 1000 },
         zoom: { enabled: false, min: 1, max: 10 }
@@ -57,6 +57,7 @@ export class Graph {
 
     /**
      * Adds axis and lines
+     * If any arguments are passed the rendered elements will not transition into place
      */
     updateView(...args) {
         this.transform = zoomTransform(this.svg.node()) || zoomIdentity;
@@ -233,27 +234,51 @@ export class Graph {
         this.settings = _merge(this.settings, settings);
     }
 
-    setView() {
-        this.width = this.el.clientWidth - this.settings.margin.left - this.settings.margin.right;
+    /**
+     * Sets the width and height of the graph and updates any containers
+     */
+    setDimensions(margin = this.settings.margin) {
+        this.width = this.el.clientWidth - margin.left - margin.right;
         this.height =
-          this.el.getBoundingClientRect().height - this.settings.margin.top - this.settings.margin.bottom;
+          this.el.getBoundingClientRect().height - margin.top - margin.bottom;
         this.svg
-            .attr('width', this.width + this.settings.margin.left + this.settings.margin.right)
-            .attr('height', this.height + this.settings.margin.top + this.settings.margin.bottom);
-        this.container
-            .attr('width', this.width)
-            .attr('height', this.height);
-        this.dataContainer
-            .attr('width', this.width)
-            .attr('height', this.height);
-        this.clip
-            .attr('width', this.width)
-            .attr('height', this.height);
+            .attr('width', this.width + margin.left + margin.right)
+            .attr('height', this.height + margin.top + margin.bottom);
+        this.container.attr('width', this.width).attr('height', this.height)
+            .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+        this.dataContainer.attr('width', this.width).attr('height', this.height)
+            .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+        this.clip.attr('width', this.width).attr('height', this.height);
         this.svg.selectAll('g.axis-x')
             .attr('transform', this.getAxisTransform(this.settings.axis.x.position));
         this.svg.selectAll('g.axis-y')
             .attr('transform', this.getAxisTransform(this.settings.axis.y.position));
         return this;
+    }
+
+    /**
+     * 
+     */
+    getValueAtPosition(xPos) {
+        if (
+            xPos < this.settings.margin.left || xPos > (this.settings.margin.left + this.width)
+        ) { return null; }
+        const values = [];
+        const graphX = Math.max(0, Math.min((xPos - this.settings.margin.left), this.width));
+        const x0 = this.scales.x.invert(graphX);
+        const bisectX = bisector((d) => d[this.settings.props.x]).left;
+        this.data.forEach((d) => {
+            const i = bisectX(d.data, x0, 1);
+            const d0 = d.data[i - 1];
+            const d1 = d.data[i];
+            const value = (x0 - d0[this.settings.props.x] > d1[this.settings.props.x] - x0) ? d1 : d0;
+            values.push({
+                ...value,
+                xPos: (this.settings.margin.left + this.scales.x(value.x)),
+                yPos: (this.settings.margin.top + this.scales.y(value.y))
+            });
+        });
+        return values;
     }
 
     /**
@@ -264,28 +289,27 @@ export class Graph {
         this.updateSettings(settings);
         // build the SVG if it doesn't exist yet
         if (!this.svg && this.d3el) {
-            this.svg = this.d3el.append('svg');
-            this.clip = this.svg.append('defs')
-                .append('clipPath')
-                .attr('id', 'data-container')
-                    .append('rect')
-                    .attr('x', 0)
-                    .attr('y', 0);
+            this.createSvg();
         }
-        // containers for axis
-        this.container = this.svg.append('g')
-            .attr('class', 'graph-container')
-            .attr('transform', 'translate(' + this.settings.margin.left + ',' + this.settings.margin.top + ')');
-        this.container.append('g').attr('class', 'axis axis-x');
-        this.container.append('g').attr('class', 'axis axis-y');
-        // masked container for data
-        this.dataContainer = this.svg.append('g')
-            .attr('clip-path', 'url(#data-container)')
-            .attr('class', 'data-container')
-            .attr('transform', 'translate(' + this.settings.margin.left + ',' + this.settings.margin.top + ')');
-        this.setView();
+        this.setDimensions();
         this.addZoomBehaviour();
         return this;
+    }
+
+    private createSvg() {
+        this.svg = this.d3el.append('svg');
+        // clip area
+        this.clip = this.svg.append('defs')
+            .append('clipPath').attr('id', 'data-container')
+                .append('rect').attr('x', 0).attr('y', 0);
+        // containers for axis
+        this.container = this.svg.append('g').attr('class', 'graph-container');
+        this.container.append('g').attr('class', 'axis axis-x').append('text');
+        this.container.append('g').attr('class', 'axis axis-y').append('text');
+        // masked container for lines and bars
+        this.dataContainer = this.svg.append('g')
+            .attr('clip-path', 'url(#data-container)')
+            .attr('class', 'data-container');
     }
 
     /**

@@ -1,4 +1,4 @@
-import { Component, OnInit, ElementRef, ViewChild, HostListener, Input, Output, AfterViewInit, OnChanges } from '@angular/core';
+import { Component, OnInit, ElementRef, EventEmitter, ViewChild, HostListener, Input, Output, AfterViewInit, OnChanges } from '@angular/core';
 
 import { Graph } from '../graph';
 
@@ -11,9 +11,10 @@ export class GraphComponent implements OnInit, AfterViewInit, OnChanges {
   @ViewChild('graphContainer') element: ElementRef;
   @Input() settings;
   @Input() data;
-  @Input() type;
   @Input() x1;
   @Input() x2;
+  @Output() hoveredData = new EventEmitter();
+  @Output() clickedData = new EventEmitter();
   graph: Graph;
 
   constructor() { }
@@ -37,11 +38,19 @@ export class GraphComponent implements OnInit, AfterViewInit, OnChanges {
 
   @HostListener('window:resize', ['$event'])
   onResize(e) {
-    this.graph.setView().updateView('no-transition');
+    this.graph.setDimensions().updateView('no-transition');
   }
 
-  onMouseMove() {}
+  @HostListener('mousemove', ['$event'])
+  onMouseMove(e) {
+    const hoveredValues = this.graph.getValueAtPosition(e.offsetX);
+    this.hoveredData.emit(hoveredValues);
+  }
 
-  onClick() {}
+  @HostListener('click', ['$event'])
+  onClick(e) {
+    const clickedValues = this.graph.getValueAtPosition(e.offsetX);
+    this.clickedData.emit(clickedValues);
+  }
 
 }

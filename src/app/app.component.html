@@ -1,6 +1,6 @@
 <!--The content below is only a placeholder and can be replaced.-->
 <div>
-  <app-graph [data]="data"></app-graph>
+  <app-graph [data]="data" (hoveredData)="logEvent($event)" (clickedData)="logEvent($event)"></app-graph>
   
 </div>
 

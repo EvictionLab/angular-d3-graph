@@ -7,17 +7,16 @@ import { Component, OnInit } from '@angular/core';
 })
 export class AppComponent implements OnInit {
   title = 'app';
-  data = this.getBarGraphData();
-  type;
+  data = this.getLineGraphData();
   toggle = true;
   x1;
   x2;
 
   ngOnInit() {
-    setInterval(() => {
-      this.data = this.toggle ? this.getLineGraphData() : this.getBarGraphData();
-      this.toggle = !this.toggle;
-    }, 4000);
+    // setInterval(() => {
+    //   this.data = this.toggle ? this.getLineGraphData() : this.getBarGraphData();
+    //   this.toggle = !this.toggle;
+    // }, 10000);
   }
 
   getLineGraphData() {
@@ -41,6 +40,10 @@ export class AppComponent implements OnInit {
       d.push({ x: i, y: base + (Math.random() * 5) - 2.5 });
     }
     return d;
+  }
+
+  logEvent(e) {
+    console.log(e);
   }
 
   setRange() {
