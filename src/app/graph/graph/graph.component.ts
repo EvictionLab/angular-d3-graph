@@ -50,6 +50,14 @@ export class GraphComponent implements OnChanges {
     }
   }
 
+  @HostListener('touchmove', ['$event'])
+  onTouchMove(e) {
+    if (e.touches && e.touches.length === 1 && this.graph.isLineGraph()) {
+      const hoveredValues = this.graph.getValueAtPosition(e.touches[0].offsetX);
+      this.lineGraphHover.emit(hoveredValues);
+    }
+  }
+
   @HostListener('click', ['$event'])
   onClick(e) {
     if (this.graph.isLineGraph()) {
