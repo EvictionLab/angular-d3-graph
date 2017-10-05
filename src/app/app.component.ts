@@ -7,7 +7,7 @@ import { Component, OnInit } from '@angular/core';
 })
 export class AppComponent implements OnInit {
   title = 'app';
-  data = this.getLineGraphData();
+  data = this.getBarGraphData();
   toggle = true;
   x1;
   x2;
@@ -15,12 +15,7 @@ export class AppComponent implements OnInit {
     axis: { x: { 'label': 'Year'}, y: { 'label': 'Evictions'} }
   };
 
-  ngOnInit() {
-    // setInterval(() => {
-    //   this.data = this.toggle ? this.getLineGraphData() : this.getBarGraphData();
-    //   this.toggle = !this.toggle;
-    // }, 10000);
-  }
+  ngOnInit() {}
 
   getLineGraphData() {
     return [
@@ -32,7 +27,8 @@ export class AppComponent implements OnInit {
   getBarGraphData() {
     return [
       { id: 'us-avg-bar', data: [ { x: 'United States Average', y: 1200 } ] },
-      { id: 'new-york-bar', data: [ { x: 'New York', y: 1600 } ] }
+      { id: 'new-york-bar', data: [ { x: 'New York', y: 1600 } ] },
+      { id: 'else-bar', data: [ { x: 'Somewhere Else', y: 600 } ] }
     ];
   }
 
@@ -45,13 +41,8 @@ export class AppComponent implements OnInit {
     return d;
   }
 
-  logEvent(e) {
-    console.log(e);
-  }
+  logEvent(e) { console.log(e); }
 
-  setRange() {
-    // this.x1 = 0;
-    // this.x2 = Math.random() * 3 + 1;
-  }
+  setRange() {}
 
 }

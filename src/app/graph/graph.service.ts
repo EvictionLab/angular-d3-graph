@@ -1,10 +1,10 @@
 import { Injectable, EventEmitter } from '@angular/core';
-import { select } from 'd3-selection';
+import { select, selectAll } from 'd3-selection';
 import { transition } from 'd3-transition';
 import { scaleLinear, scaleBand } from 'd3-scale';
 import { easePoly } from 'd3-ease';
 import { axisRight, axisBottom, axisLeft, axisTop } from 'd3-axis';
-import { extent, max, bisector } from 'd3-array';
+import { extent, max, bisector, scan } from 'd3-array';
 import { format } from 'd3-format';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { line } from 'd3-shape';
@@ -186,15 +186,6 @@ export class GraphService {
     return this;
   }
 
-  private getBarRect(el) {
-    return {
-      top: parseFloat(el.getAttribute('y')) + this.settings.margin.top,
-      left: parseFloat(el.getAttribute('x')) + this.settings.margin.left,
-      width: parseFloat(el.getAttribute('width')),
-      height: parseFloat(el.getAttribute('height'))
-    };
-  }
-
   /**
    * Renders lines for any data in the data set.
    */
@@ -321,6 +312,67 @@ export class GraphService {
       });
     });
     return values;
+  }
+
+  /**
+   * Gets the line values for a previous or next x value
+   * @param currentX
+   * @param offset
+   */
+  getLineValues(currentX, offset = 1) {
+    // use the first X value if there is no current
+    if (!currentX) {
+      currentX = this.data[0][this.settings.props.x];
+      offset = 0;
+    }
+    const values = [];
+    const bisectX = bisector((d) => d[this.settings.props.x]).left;
+    this.data.forEach((d) => {
+      const i = bisectX(d.data, currentX, 1);
+      const boundedIndex = Math.min(d.data.length - 1, Math.max(0, i + offset));
+      const newValue = d.data[boundedIndex];
+      values.push({
+        ...newValue,
+        id: d.id,
+        xPos: (this.settings.margin.left + this.scales.x(newValue.x)),
+        yPos: (this.settings.margin.top + this.scales.y(newValue.y))
+      });
+    });
+    return values;
+  }
+
+  /**
+   * Gets the bar values for a previous or next x value
+   * @param currentX
+   * @param offset
+   */
+  getBarValue(currentX, offset = 1) {
+    let newIndex = -1;
+    // get the new index, or start at the beginning if there is no current value
+    if (!currentX) {
+      newIndex = 0;
+    } else {
+      this.data.forEach((d, i) => {
+        if (d.data[0][this.settings.props.x] === currentX) {
+          newIndex = (i + offset) % this.data.length;
+        }
+      });
+    }
+    // get the bar dimensions for the new index and return the data / position
+    if (newIndex > -1) {
+      const el = selectAll('.bar').filter((d0: any) => d0.id === this.data[newIndex].id).node();
+      return [{ id: this.data[newIndex].id, ...this.data[newIndex].data[0], ...this.getBarRect(el) }];
+    }
+    return null;
+  }
+
+  private getBarRect(el) {
+    return {
+      top: parseFloat(el.getAttribute('y')) + this.settings.margin.top,
+      left: parseFloat(el.getAttribute('x')) + this.settings.margin.left,
+      width: parseFloat(el.getAttribute('width')),
+      height: parseFloat(el.getAttribute('height'))
+    };
   }
 
   private createSvg() {

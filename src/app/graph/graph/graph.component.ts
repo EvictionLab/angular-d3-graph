@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, ViewChild, HostListener, Input, Output, OnChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, ViewChild, HostListener, Input, Output, OnChanges, OnInit } from '@angular/core';
 
 import { GraphService } from '../graph.service';
 
@@ -8,20 +8,26 @@ import { GraphService } from '../graph.service';
   styleUrls: ['./graph.component.css'],
   providers: [ GraphService ]
 })
-export class GraphComponent implements OnChanges {
+export class GraphComponent implements OnChanges, OnInit {
   @ViewChild('graphContainer') element: ElementRef;
   @Input() settings;
   @Input() data;
   @Input() x1;
   @Input() x2;
-  @Output() lineGraphHover = new EventEmitter();
-  @Output() lineGraphClick = new EventEmitter();
-  @Output() barGraphHover;
-  @Output() barGraphClick;
+  @Input()
+  get activeValues() { return this._activeValues; }
+  @Output() activeValuesChanged = new EventEmitter();
+  set activeValues(val) {
+    this._activeValues = val;
+    this.activeValuesChanged.emit(this._activeValues);
+  }
+  private _activeValues = [];
 
-  constructor(public graph: GraphService) {
-    this.barGraphHover = this.graph.barHover;
-    this.barGraphClick = this.graph.barClick;
+  constructor(public graph: GraphService) {}
+
+  ngOnInit() {
+    this.graph.barHover.subscribe((val) => { this.activeValues = val; });
+    this.graph.barClick.subscribe((val) => { this.activeValues = val; });
   }
 
   ngOnChanges(changes) {
@@ -46,7 +52,8 @@ export class GraphComponent implements OnChanges {
   onMouseMove(e) {
     if (this.graph.isLineGraph()) {
       const hoveredValues = this.graph.getValueAtPosition(e.offsetX);
-      this.lineGraphHover.emit(hoveredValues);
+      this.activeValues = hoveredValues;
+      // this.lineGraphHover.emit(hoveredValues);
     }
   }
 
@@ -54,7 +61,8 @@ export class GraphComponent implements OnChanges {
   onTouchMove(e) {
     if (e.touches && e.touches.length === 1 && this.graph.isLineGraph()) {
       const hoveredValues = this.graph.getValueAtPosition(e.touches[0].offsetX);
-      this.lineGraphHover.emit(hoveredValues);
+      this.activeValues = hoveredValues;
+      // this.lineGraphHover.emit(hoveredValues);
     }
   }
 
@@ -62,7 +70,23 @@ export class GraphComponent implements OnChanges {
   onClick(e) {
     if (this.graph.isLineGraph()) {
       const clickedValues = this.graph.getValueAtPosition(e.offsetX);
-      this.lineGraphClick.emit(clickedValues);
+      this.activeValues = clickedValues;
+      // this.lineGraphClick.emit(clickedValues);
+    }
+  }
+
+  @HostListener('keydown', ['$event'])
+  onKeyDown(e) {
+    // escape
+    if (e.keyCode === 27) { return this.activeValues = null; }
+    // left or right arrows
+    const offset = e.keyCode === 37 ? -1 : (e.keyCode === 39 ? 1 : null);
+    if (offset !== null) {
+      const currentX = (this.activeValues && this.activeValues.length) ?
+        this.activeValues[0][this.graph.settings.props.x] : null;
+      const nextValues = this.graph.isLineGraph() ?
+        this.graph.getLineValues(currentX, 1) : this.graph.getBarValue(currentX, 1);
+      this.activeValues = nextValues;
     }
   }
 

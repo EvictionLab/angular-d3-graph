@@ -3,10 +3,8 @@
   <app-graph 
     [data]="data" 
     [settings]="settings"
-    (lineGraphHover)="logEvent($event)" 
-    (lineGraphClick)="logEvent($event)"
-    (barGraphHover)="logEvent($event)" 
-    (barGraphClick)="logEvent($event)"
+    (activeValuesChanged)="logEvent($event)" 
+    tabindex="0"
   ></app-graph>
   
 </div>
