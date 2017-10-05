@@ -1,6 +1,6 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { GraphComponent } from './graph/graph.component';
+import { GraphComponent } from './src/app/graph/graph/graph.component';
 
 @NgModule({
   imports: [ CommonModule ],
