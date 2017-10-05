@@ -1,34 +1,35 @@
-import { Component, OnInit, ElementRef, EventEmitter, ViewChild, HostListener, Input, Output, AfterViewInit, OnChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, ViewChild, HostListener, Input, Output, OnChanges } from '@angular/core';
 
-import { Graph } from '../graph';
+import { GraphService } from '../graph.service';
 
 @Component({
   selector: 'app-graph',
   templateUrl: './graph.component.html',
-  styleUrls: ['./graph.component.css']
+  styleUrls: ['./graph.component.css'],
+  providers: [ GraphService ]
 })
-export class GraphComponent implements OnInit, AfterViewInit, OnChanges {
+export class GraphComponent implements OnChanges {
   @ViewChild('graphContainer') element: ElementRef;
   @Input() settings;
   @Input() data;
   @Input() x1;
   @Input() x2;
-  @Output() hoveredData = new EventEmitter();
-  @Output() clickedData = new EventEmitter();
-  graph: Graph;
+  @Output() lineGraphHover = new EventEmitter();
+  @Output() lineGraphClick = new EventEmitter();
+  @Output() barGraphHover;
+  @Output() barGraphClick;
 
-  constructor() { }
-
-  ngOnInit() {}
-
-  ngAfterViewInit() {}
+  constructor(public graph: GraphService) {
+    this.barGraphHover = this.graph.barHover;
+    this.barGraphClick = this.graph.barClick;
+  }
 
   ngOnChanges(changes) {
     if (changes.data && this.element) {
-      if (this.graph) {
+      if (this.graph.isCreated()) {
         this.graph.update(changes.data.currentValue);
       } else {
-        this.graph = new Graph(this.element.nativeElement, changes.data.currentValue, this.settings);
+        this.graph = this.graph.create(this.element.nativeElement, changes.data.currentValue, this.settings);
       }
     }
     if ((changes.x1 || changes.x2) && this.element && (this.x1 && this.x2)) {
@@ -43,14 +44,18 @@ export class GraphComponent implements OnInit, AfterViewInit, OnChanges {
 
   @HostListener('mousemove', ['$event'])
   onMouseMove(e) {
-    const hoveredValues = this.graph.getValueAtPosition(e.offsetX);
-    this.hoveredData.emit(hoveredValues);
+    if (this.graph.isLineGraph()) {
+      const hoveredValues = this.graph.getValueAtPosition(e.offsetX);
+      this.lineGraphHover.emit(hoveredValues);
+    }
   }
 
   @HostListener('click', ['$event'])
   onClick(e) {
-    const clickedValues = this.graph.getValueAtPosition(e.offsetX);
-    this.clickedData.emit(clickedValues);
+    if (this.graph.isLineGraph()) {
+      const clickedValues = this.graph.getValueAtPosition(e.offsetX);
+      this.lineGraphClick.emit(clickedValues);
+    }
   }
 
 }

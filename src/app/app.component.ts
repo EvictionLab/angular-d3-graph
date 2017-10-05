@@ -11,6 +11,9 @@ export class AppComponent implements OnInit {
   toggle = true;
   x1;
   x2;
+  settings = {
+    axis: { x: { 'label': 'Year'}, y: { 'label': 'Evictions'} }
+  };
 
   ngOnInit() {
     // setInterval(() => {
