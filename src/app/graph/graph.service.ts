@@ -17,7 +17,7 @@ export class GraphService {
   data: any = [];
   settings = {
     props: { x: 'x', y: 'y' },
-    margin: { left: 40, right: 10, top: 10, bottom: 40 },
+    margin: { left: 48, right: 10, top: 10, bottom: 48 },
     axis: {
       x: { position: 'bottom', label: 'x', ticks: 5, tickSize: 5, tickFormat: ',.0f', invert: false },
       y: { position: 'left', label: 'y', ticks: 5, tickSize: 5, tickFormat: ',.0f', invert: false }
@@ -38,6 +38,7 @@ export class GraphService {
   private scales;
   private transform = zoomIdentity;
   private created = false;
+  private bisectX = bisector((d) => d[this.settings.props.x]).left;
 
   /**
    * initializes the SVG element for the graph
@@ -175,9 +176,9 @@ export class GraphService {
         .attr('y', this.height)
         .attr('width', this.scales.x.bandwidth())
         .attr('height', 0)
-        .on('mouseover', function(d) { self.barHover.emit({...d, ...self.getBarRect(this)}); })
+        .on('mouseover', function(d) { self.barHover.emit({...d, ...self.getBarRect(this), el: this }); })
         .on('mouseout',  function(d) { self.barHover.emit(null); })
-        .on('click',  function(d) { self.barClick.emit({...d, ...self.getBarRect(this)}); })
+        .on('click',  function(d) { self.barClick.emit({...d, ...self.getBarRect(this), el: this }); })
         .transition().ease(this.settings.transition.ease)
         .duration(this.settings.transition.duration)
         .attr('height', (d) => this.height - this.scales.y(d.data[0][this.settings.props.y]))
@@ -289,29 +290,15 @@ export class GraphService {
   }
 
   /**
-   * Gets the value of the data at the provided x position
+   * Gets the value of the data at the provided x pixel coordinate
    */
   getValueAtPosition(xPos) {
     if (
       xPos < this.settings.margin.left || xPos > (this.settings.margin.left + this.width)
     ) { return null; }
-    const values = [];
     const graphX = Math.max(0, Math.min((xPos - this.settings.margin.left), this.width));
     const x0 = this.scales.x.invert(graphX);
-    const bisectX = bisector((d) => d[this.settings.props.x]).left;
-    this.data.forEach((d) => {
-      const i = bisectX(d.data, x0, 1);
-      const d0 = d.data[i - 1];
-      const d1 = d.data[i];
-      const value = (x0 - d0[this.settings.props.x] > d1[this.settings.props.x] - x0) ? d1 : d0;
-      values.push({
-        ...value,
-        id: d.id,
-        xPos: (this.settings.margin.left + this.scales.x(value.x)),
-        yPos: (this.settings.margin.top + this.scales.y(value.y))
-      });
-    });
-    return values;
+    return this.getLineValues(x0, 0);
   }
 
   /**
@@ -321,22 +308,19 @@ export class GraphService {
    */
   getLineValues(currentX, offset = 1) {
     // use the first X value if there is no current
-    if (!currentX) {
-      currentX = this.data[0][this.settings.props.x];
+    if (!currentX && currentX !== 0) {
+      currentX = this.data[0].data[0][this.settings.props.x];
       offset = 0;
     }
+    const self = this;
     const values = [];
-    const bisectX = bisector((d) => d[this.settings.props.x]).left;
-    this.data.forEach((d) => {
-      const i = bisectX(d.data, currentX, 1);
-      const boundedIndex = Math.min(d.data.length - 1, Math.max(0, i + offset));
-      const newValue = d.data[boundedIndex];
-      values.push({
-        ...newValue,
-        id: d.id,
-        xPos: (this.settings.margin.left + this.scales.x(newValue.x)),
-        yPos: (this.settings.margin.top + this.scales.y(newValue.y))
-      });
+    selectAll('.line').each(function (d: any) {
+      const i = self.bisectX(d.data, currentX, 1);
+      const x0 = d.data[i - 1][self.settings.props.x];
+      const x1 = d.data[i][self.settings.props.x];
+      const closestIndex = (Math.abs(currentX - x0) > Math.abs(currentX - x1)) ? i : i - 1;
+      const boundedIndex = Math.min(d.data.length - 1, Math.max(0, closestIndex + offset));
+      values.push(self.getLineEventValue(d, boundedIndex, this));
     });
     return values;
   }
@@ -347,23 +331,38 @@ export class GraphService {
    * @param offset
    */
   getBarValue(currentX, offset = 1) {
+    const self = this;
     let newIndex = -1;
     // get the new index, or start at the beginning if there is no current value
     if (!currentX) {
       newIndex = 0;
     } else {
-      this.data.forEach((d, i) => {
-        if (d.data[0][this.settings.props.x] === currentX) {
-          newIndex = (i + offset) % this.data.length;
+      selectAll('.bar').each(function(d: any, i: number) {
+        if (d.data[0][self.settings.props.x] === currentX) {
+          newIndex = (i + offset) % self.data.length;
         }
       });
     }
     // get the bar dimensions for the new index and return the data / position
     if (newIndex > -1) {
-      const el = selectAll('.bar').filter((d0: any) => d0.id === this.data[newIndex].id).node();
-      return [{ id: this.data[newIndex].id, ...this.data[newIndex].data[0], ...this.getBarRect(el) }];
+      const el = selectAll('.bar').filter((d0: any, i) => i === newIndex).node();
+      return [{ id: this.data[newIndex].id, ...this.data[newIndex].data[0], ...this.getBarRect(el), el: el }];
     }
     return null;
+  }
+
+  private getLineEventValue(dataItem, pointIndex, el) {
+    return {
+      id: dataItem.id,
+      ...dataItem.data[pointIndex],
+      xPos: (this.settings.margin.left + this.scales.x(dataItem.data[pointIndex][this.settings.props.x])),
+      yPos: (this.settings.margin.top + this.scales.y(dataItem.data[pointIndex][this.settings.props.x])),
+      el: el
+    };
+  }
+
+  private getBarEventValue(data) {
+
   }
 
   private getBarRect(el) {

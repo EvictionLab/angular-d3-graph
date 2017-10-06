@@ -1,17 +1,32 @@
-.graph {
+.app-graph-container {
+    display:block;
+    width:100%;
+    padding-top:56.5%;
+    position:relative;
+}
+.app-graph {
     width:100%;
     height:100%;
     position:absolute;
-    top:0;left:0;
+    top:0; left:0;
 }
-
-:host /deep/ .axis text {
-    font-size: 11px;
+.app-graph .axis text {
     fill: rgba(0,0,0,.9);
 }
-
-:host /deep/ .line {
+.app-graph .line {
     stroke: #000;
     stroke-width: 2;
     fill: none;
 }
+.app-graph .axis [class*="label"] {
+    font-size:12px;
+}
+
+.app-graph .line-1 { stroke: #666; }
+.app-graph .line-2 { stroke: #333; }
+.app-graph .line-3 { stroke: #999; }
+.app-graph .line-4 { stroke: #ccc; }
+.app-graph .bar-1 { fill: #666; }
+.app-graph .bar-2 { fill: #333; }
+.app-graph .bar-3 { fill: #999; }
+.app-graph .bar-4 { fill: #ccc; }

@@ -1,4 +1,5 @@
-import { Component, ElementRef, EventEmitter, ViewChild, HostListener, Input, Output, OnChanges, OnInit } from '@angular/core';
+import { Component, ElementRef, EventEmitter, ViewChild, HostListener, ViewEncapsulation, Input, Output, OnChanges, OnInit } from '@angular/core';
+import * as _isEqual from 'lodash.isequal';
 
 import { GraphService } from '../graph.service';
 
@@ -6,9 +7,11 @@ import { GraphService } from '../graph.service';
   selector: 'app-graph',
   templateUrl: './graph.component.html',
   styleUrls: ['./graph.component.css'],
-  providers: [ GraphService ]
+  providers: [ GraphService ],
+  encapsulation: ViewEncapsulation.None
 })
 export class GraphComponent implements OnChanges, OnInit {
+  private _activeValues = [];
   @ViewChild('graphContainer') element: ElementRef;
   @Input() settings;
   @Input() data;
@@ -16,12 +19,13 @@ export class GraphComponent implements OnChanges, OnInit {
   @Input() x2;
   @Input()
   get activeValues() { return this._activeValues; }
-  @Output() activeValuesChanged = new EventEmitter();
   set activeValues(val) {
-    this._activeValues = val;
-    this.activeValuesChanged.emit(this._activeValues);
+    if (!_isEqual(this._activeValues, val)) {
+      this._activeValues = val;
+      this.activeValuesChanged.emit(this._activeValues);
+    }
   }
-  private _activeValues = [];
+  @Output() activeValuesChanged = new EventEmitter();
 
   constructor(public graph: GraphService) {}
 
@@ -30,15 +34,25 @@ export class GraphComponent implements OnChanges, OnInit {
     this.graph.barClick.subscribe((val) => { this.activeValues = val; });
   }
 
+  /**
+   * When data changes update the graph or create one if it doesn't exist yet
+   * When x1 / x2 values change, adjust the visible range to what's specified
+   * @param changes
+   */
   ngOnChanges(changes) {
     if (changes.data && this.element) {
       if (this.graph.isCreated()) {
         this.graph.update(changes.data.currentValue);
       } else {
-        this.graph = this.graph.create(this.element.nativeElement, changes.data.currentValue, this.settings);
+        this.graph =
+          this.graph.create(this.element.nativeElement, changes.data.currentValue, this.settings);
       }
     }
-    if ((changes.x1 || changes.x2) && this.element && (this.x1 && this.x2)) {
+    if (
+      (changes.x1 || changes.x2) &&
+      this.element && (this.x1 && this.x2) &&
+      this.graph.isLineGraph()
+    ) {
       this.graph.setVisibleRange(this.x1, this.x2);
     }
   }
@@ -53,7 +67,6 @@ export class GraphComponent implements OnChanges, OnInit {
     if (this.graph.isLineGraph()) {
       const hoveredValues = this.graph.getValueAtPosition(e.offsetX);
       this.activeValues = hoveredValues;
-      // this.lineGraphHover.emit(hoveredValues);
     }
   }
 
@@ -62,7 +75,6 @@ export class GraphComponent implements OnChanges, OnInit {
     if (e.touches && e.touches.length === 1 && this.graph.isLineGraph()) {
       const hoveredValues = this.graph.getValueAtPosition(e.touches[0].offsetX);
       this.activeValues = hoveredValues;
-      // this.lineGraphHover.emit(hoveredValues);
     }
   }
 
@@ -71,7 +83,6 @@ export class GraphComponent implements OnChanges, OnInit {
     if (this.graph.isLineGraph()) {
       const clickedValues = this.graph.getValueAtPosition(e.offsetX);
       this.activeValues = clickedValues;
-      // this.lineGraphClick.emit(clickedValues);
     }
   }
 
@@ -85,9 +96,23 @@ export class GraphComponent implements OnChanges, OnInit {
       const currentX = (this.activeValues && this.activeValues.length) ?
         this.activeValues[0][this.graph.settings.props.x] : null;
       const nextValues = this.graph.isLineGraph() ?
-        this.graph.getLineValues(currentX, 1) : this.graph.getBarValue(currentX, 1);
+        this.graph.getLineValues(currentX, offset) : this.graph.getBarValue(currentX, offset);
       this.activeValues = nextValues;
     }
+  }
+
+  // activate the first item on focus
+  @HostListener('focus', ['$event'])
+  onFocus(e) {
+    const nextValues = this.graph.isLineGraph() ?
+      this.graph.getLineValues(null, 0) : this.graph.getBarValue(null, 0);
+    this.activeValues = nextValues;
+  }
+
+  // remove any active highlights on blur
+  @HostListener('blur', ['$event'])
+  onBlur(e) {
+    this.activeValues = null;
   }
 
 }
