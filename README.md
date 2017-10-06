@@ -28,14 +28,15 @@ Add it into your component template:
   <app-graph 
     [data]="data" 
     [settings]="settings"
-    (lineGraphHover)="logEvent($event)" 
-    (lineGraphClick)="logEvent($event)"
-    (barGraphHover)="logEvent($event)" 
-    (barGraphClick)="logEvent($event)"
+    [x1]="start"
+    [x2]="end"
+    (activeValuesChanged)="logEvent($event)"
   ></app-graph>
 ```
 
-## Data
+## Inputs
+
+### Data
 Data can be formatted in two ways, one for line graphs and one for bar graphs.
 
 Line Graph:
@@ -58,7 +59,7 @@ Bar Graph:
 }]
 ```
 
-## Settings
+### Settings
 You can provide your own settings object overrides to the settings input on the component.
 
 Default settings are as follows:
@@ -99,9 +100,11 @@ Default settings are as follows:
 };
 ```
 
+### x1 and x2
+The x1 and x2 inputs are used for adjusting the view of the line graph to show from x1 to x2.
+
 ## Outputs
 
-  - `lineGraphHover`: `$event` contains an array of all of the x / y values of the lines and their pixel coordinates based on where the mouse hovered
-  - `lineGraphClick`: `$event` contains an array of all of the x / y values of the lines and their pixel coordinates based on where the user clicked / pressed
-  - `barGraphHover`: `$event` contains an object with the hovered item's data and pixel coordinates
-  - `barGraphClick`: `$event` contains an object with the hovered item's data and pixel coordinates
+### `activeValuesChanged`
+
+`$event` contains an array of all of the lines, or the selected bar and their x / y values based on the mouse position on hover, the touch location, or the positon navigated to by keyboard.
