@@ -1,8 +1,12 @@
 {
   "name": "angular-d3-graph",
-  "author": "Lane Olson",
-  "version": "0.1.1",
+  "author": "Lane Olson <laneolson@gmail.com>",
+  "version": "0.1.2",
   "license": "MIT",
+  "repository": { 
+    "type" : "git",
+    "url" : "https://github.com/EvictionLab/angular-d3-graph.git"
+  },
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
