@@ -351,18 +351,20 @@ export class GraphService {
     return null;
   }
 
+  /**
+   * Builds an object to return for DOM events
+   * @param dataItem the line data item
+   * @param pointIndex the index of the point to get data at
+   * @param el the DOM line element
+   */
   private getLineEventValue(dataItem, pointIndex, el) {
     return {
       id: dataItem.id,
       ...dataItem.data[pointIndex],
       xPos: (this.settings.margin.left + this.scales.x(dataItem.data[pointIndex][this.settings.props.x])),
-      yPos: (this.settings.margin.top + this.scales.y(dataItem.data[pointIndex][this.settings.props.x])),
+      yPos: (this.settings.margin.top + this.scales.y(dataItem.data[pointIndex][this.settings.props.y])),
       el: el
     };
-  }
-
-  private getBarEventValue(data) {
-
   }
 
   private getBarRect(el) {
