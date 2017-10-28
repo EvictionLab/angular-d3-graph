@@ -1,8 +1,7 @@
 .app-graph-container {
     display:block;
-    width:100%;
-    padding-top:56.5%;
-    position:relative;
+    position:absolute;
+    top:0;left:0;right:0;bottom:0;
 }
 .app-graph {
     width:100%;
