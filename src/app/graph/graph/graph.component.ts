@@ -17,6 +17,7 @@ export class GraphComponent implements OnChanges, OnInit {
   @Input() data;
   @Input() x1;
   @Input() x2;
+  @Input() hoverAll = false;
   @Input()
   get activeValues() { return this._activeValues; }
   set activeValues(val) {
@@ -69,7 +70,8 @@ export class GraphComponent implements OnChanges, OnInit {
   onMouseMove(e) {
     if (this.graph.isLineGraph()) {
       const hoveredValues = this.graph.getValueAtPosition(e.offsetX);
-      this.activeValues = hoveredValues;
+      this.activeValues = this.hoverAll ?
+        hoveredValues : this.getClosestLine(e.offsetY, hoveredValues);
     }
   }
 
@@ -77,7 +79,8 @@ export class GraphComponent implements OnChanges, OnInit {
   onTouchMove(e) {
     if (e.touches && e.touches.length === 1 && this.graph.isLineGraph()) {
       const hoveredValues = this.graph.getValueAtPosition(e.touches[0].offsetX);
-      this.activeValues = hoveredValues;
+      this.activeValues = this.hoverAll ?
+        hoveredValues : this.getClosestLine(e.touches[0].offsetY, hoveredValues);
     }
   }
 
@@ -122,6 +125,20 @@ export class GraphComponent implements OnChanges, OnInit {
   @HostListener('mouseleave', ['$event'])
   onLeave(e) {
     this.activeValues = null;
+  }
+
+  private getClosestLine(yValue, lines) {
+    if (!lines || !lines.length) { return null; }
+    let bestMatch;
+    let offset = Number.POSITIVE_INFINITY;
+    for (const line of lines) {
+      const currentOffset = Math.abs(line.yPos - yValue);
+      if (currentOffset < offset) {
+        offset = currentOffset;
+        bestMatch = line;
+      }
+    }
+    return [ bestMatch ];
   }
 
 }
