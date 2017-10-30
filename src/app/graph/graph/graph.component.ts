@@ -48,6 +48,9 @@ export class GraphComponent implements OnChanges, OnInit {
           this.graph.create(this.element.nativeElement, changes.data.currentValue, this.settings);
       }
     }
+    if (changes.settings && this.graph.isCreated()) {
+      this.graph.updateSettings(changes.settings.currentValue);
+    }
     if (
       (changes.x1 || changes.x2) &&
       this.element && (this.x1 && this.x2) &&
@@ -112,6 +115,12 @@ export class GraphComponent implements OnChanges, OnInit {
   // remove any active highlights on blur
   @HostListener('blur', ['$event'])
   onBlur(e) {
+    this.activeValues = null;
+  }
+
+  // remove any active highlights on blur
+  @HostListener('mouseleave', ['$event'])
+  onLeave(e) {
     this.activeValues = null;
   }
 
