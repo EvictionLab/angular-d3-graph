@@ -161,13 +161,19 @@ export class GraphService {
       .attr('y', this.height)
       .remove();
 
-    if (this.type === 'bar') {
-      // update bars with new data
-      bars.attr('class', (d, i) => 'bar bar-' + i)
+    const update = () => {
+      bars.transition().ease(this.settings.transition.ease)
+        .duration(this.settings.transition.duration)
+        .attr('class', (d, i) => 'bar bar-' + i)
         .attr('height', (d) => this.height - this.scales.y(d.data[0][this.settings.props.y]))
         .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]))
         .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
         .attr('width', this.scales.x.bandwidth());
+    };
+
+    if (this.type === 'bar') {
+      // update bars with new data
+      update();
 
       // add bars for new data
       bars.enter().append('rect')
@@ -178,11 +184,7 @@ export class GraphService {
         .attr('height', 0)
         .on('mouseover', function(d) { self.barHover.emit({...d, ...self.getBarRect(this), el: this }); })
         .on('mouseout',  function(d) { self.barHover.emit(null); })
-        .on('click',  function(d) { self.barClick.emit({...d, ...self.getBarRect(this), el: this }); })
-        .transition().ease(this.settings.transition.ease)
-        .duration(this.settings.transition.duration)
-        .attr('height', (d) => this.height - this.scales.y(d.data[0][this.settings.props.y]))
-        .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]));
+        .on('click',  function(d) { self.barClick.emit({...d, ...self.getBarRect(this), el: this }); });
     }
     return this;
   }
