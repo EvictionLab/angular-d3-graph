@@ -178,13 +178,17 @@ export class GraphService {
       // add bars for new data
       bars.enter().append('rect')
         .attr('class', (d, i) => 'bar bar-enter bar-' + i)
+        .on('mouseover', function(d) { self.barHover.emit({...d, ...self.getBarRect(this), el: this }); })
+        .on('mouseout',  function(d) { self.barHover.emit(null); })
+        .on('click',  function(d) { self.barClick.emit({...d, ...self.getBarRect(this), el: this }); })
         .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
         .attr('y', this.height)
         .attr('width', this.scales.x.bandwidth())
         .attr('height', 0)
-        .on('mouseover', function(d) { self.barHover.emit({...d, ...self.getBarRect(this), el: this }); })
-        .on('mouseout',  function(d) { self.barHover.emit(null); })
-        .on('click',  function(d) { self.barClick.emit({...d, ...self.getBarRect(this), el: this }); });
+        .transition().ease(this.settings.transition.ease)
+          .duration(this.settings.transition.duration)
+          .attr('height', (d) => this.height - this.scales.y(d.data[0][this.settings.props.y]))
+          .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]));
     }
     return this;
   }
