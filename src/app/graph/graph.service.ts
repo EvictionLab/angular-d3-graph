@@ -165,7 +165,7 @@ export class GraphService {
       bars.transition().ease(this.settings.transition.ease)
         .duration(this.settings.transition.duration)
         .attr('class', (d, i) => 'bar bar-' + i)
-        .attr('height', (d) => this.height - this.scales.y(d.data[0][this.settings.props.y]))
+        .attr('height', (d) => Math.max(0, this.height - this.scales.y(d.data[0][this.settings.props.y])))
         .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]))
         .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
         .attr('width', this.scales.x.bandwidth());
@@ -187,7 +187,7 @@ export class GraphService {
         .attr('height', 0)
         .transition().ease(this.settings.transition.ease)
           .duration(this.settings.transition.duration)
-          .attr('height', (d) => this.height - this.scales.y(d.data[0][this.settings.props.y]))
+          .attr('height', (d) => Math.max(0, this.height - this.scales.y(d.data[0][this.settings.props.y])))
           .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]));
     }
     return this;
