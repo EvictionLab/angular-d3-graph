@@ -265,6 +265,7 @@ export class GraphService {
    */
   updateSettings(settings = {}) {
     this.settings = _merge(this.settings, settings);
+    this.log('updated settings', settings);
   }
 
   /**
@@ -298,7 +299,7 @@ export class GraphService {
         .attr('dy', 10)
         .attr('text-anchor', 'middle')
         .text(this.settings.axis.y.label);
-    this.log('setting dimensions: ', this.width, this.height, margin);
+    this.log('setting dimensions', this.width, this.height, margin);
     return this;
   }
 
@@ -408,7 +409,7 @@ export class GraphService {
     this.dataContainer = this.svg.append('g')
       .attr('clip-path', 'url(#data-container)')
       .attr('class', 'data-container');
-    
+    this.log('created svg', this.svg);
   } 
 
   /**
@@ -484,6 +485,7 @@ export class GraphService {
     if (settings.hasOwnProperty('tickFormat') && settings.tickFormat) {
       axis = axis.tickFormat(format(settings.tickFormat));
     }
+    this.log('created axis', axis, settings);
     return axis;
   }
 
