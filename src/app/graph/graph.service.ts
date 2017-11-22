@@ -281,9 +281,9 @@ export class GraphService {
       .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
     this.dataContainer.attr('width', this.width).attr('height', this.height)
       .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-    this.dataRect.attr('width', this.width).attr('height', this.height)
-      .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
     this.clip.attr('width', this.width).attr('height', this.height);
+    this.dataRect.attr('width', this.width).attr('height', this.height)
+        .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
     this.svg.selectAll('g.axis-x')
       .attr('transform', this.getAxisTransform(this.settings.axis.x.position))
       .selectAll('.label-x')
@@ -475,12 +475,14 @@ export class GraphService {
   /** Add ticks to an axis */
   private addTicks(axisGen, settings) {
     let axis = axisGen;
-    let axisType: string;
     if (settings.hasOwnProperty('ticks') && settings.ticks) {
-      axis = axis.ticks(settings.ticks)
+      axis = axis.ticks(settings.ticks);
     }
     if (settings.hasOwnProperty('tickSize') && settings.tickSize) {
-      axis = axis.tickSize(this.getTickSize(settings.tickSize, settings.position))
+      axis = axis.tickSize(this.getTickSize(settings.tickSize, settings.position));
+    }
+    if (settings.hasOwnProperty('tickFormat') && settings.tickFormat) {
+      axis = axis.tickFormat(format(settings.tickFormat));
     }
     return axis;
   }
