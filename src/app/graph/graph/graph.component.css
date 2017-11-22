@@ -29,3 +29,5 @@
 .app-graph .bar-2 { fill: #333; }
 .app-graph .bar-3 { fill: #999; }
 .app-graph .bar-4 { fill: #ccc; }
+
+.app-graph .graph-rect { fill:none; stroke: none;  }
