@@ -19,11 +19,12 @@ export class GraphService {
     props: { x: 'x', y: 'y' },
     margin: { left: 48, right: 10, top: 10, bottom: 48 },
     axis: {
-      x: { position: 'bottom', label: 'x', ticks: 5, tickSize: 5, tickFormat: ',.0f', invert: false },
-      y: { position: 'left', label: 'y', ticks: 5, tickSize: 5, tickFormat: ',.0f', invert: false }
+      x: { position: 'bottom', label: 'x', invert: false, extent: [] },
+      y: { position: 'left', label: 'y', invert: false, extent: [] }
     },
     transition: { ease: easePoly, duration: 1000 },
-    zoom: { enabled: false, min: 1, max: 10 }
+    zoom: { enabled: false, min: 1, max: 10 },
+    debug: false
   };
   barHover = new EventEmitter();
   barClick = new EventEmitter();
@@ -34,6 +35,7 @@ export class GraphService {
   private d3el;
   private container;
   private dataContainer;
+  private dataRect; // rectangle around the bounds of the graph data
   private clip;
   private scales;
   private transform = zoomIdentity;
@@ -279,11 +281,14 @@ export class GraphService {
       .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
     this.dataContainer.attr('width', this.width).attr('height', this.height)
       .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+    this.dataRect.attr('width', this.width).attr('height', this.height)
+      .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
     this.clip.attr('width', this.width).attr('height', this.height);
     this.svg.selectAll('g.axis-x')
       .attr('transform', this.getAxisTransform(this.settings.axis.x.position))
       .selectAll('.label-x')
         .attr('transform', 'translate(' + this.width / 2 + ',' + margin.bottom + ')')
+        .attr('text-anchor', 'middle')
         .attr('dy', -10)
         .text(this.settings.axis.x.label);
     this.svg.selectAll('g.axis-y')
@@ -291,7 +296,9 @@ export class GraphService {
       .selectAll('.label-y')
         .attr('transform', 'rotate(-90) translate(' + -this.height / 2 + ',' + -margin.left + ')')
         .attr('dy', 10)
+        .attr('text-anchor', 'middle')
         .text(this.settings.axis.y.label);
+    this.log('setting dimensions: ', this.width, this.height, margin);
     return this;
   }
 
@@ -384,6 +391,9 @@ export class GraphService {
 
   private createSvg() {
     this.svg = this.d3el.append('svg');
+    // data rect
+    this.dataRect = this.svg.append('rect')
+      .attr('class', 'graph-rect');
     // clip area
     this.clip = this.svg.append('defs')
       .append('clipPath').attr('id', 'data-container')
@@ -398,7 +408,8 @@ export class GraphService {
     this.dataContainer = this.svg.append('g')
       .attr('clip-path', 'url(#data-container)')
       .attr('class', 'data-container');
-  }
+    
+  } 
 
   /**
    * Creates the zoom behaviour for the graph then sets it up based on
@@ -458,17 +469,30 @@ export class GraphService {
         scale = this.scales.y;
         break;
     }
-    if (this.type === 'line') {
-      return axisGen(scale).ticks(settings.ticks)
-        .tickSize(settings.tickSize)
-        .tickFormat(format(settings.tickFormat));
-    } else if (this.type === 'bar') {
-      if (settings.position === 'top' || settings.position === 'bottom') {
-        return axisGen(scale);
-      } else if (settings.position === 'left' || settings.position === 'right') {
-        return axisGen(scale).ticks(settings.ticks);
-      }
+    return this.addTicks(axisGen(scale), settings);
+  }
+
+  /** Add ticks to an axis */
+  private addTicks(axisGen, settings) {
+    let axis = axisGen;
+    let axisType: string;
+    if (settings.hasOwnProperty('ticks') && settings.ticks) {
+      axis = axis.ticks(settings.ticks)
     }
+    if (settings.hasOwnProperty('tickSize') && settings.tickSize) {
+      axis = axis.tickSize(this.getTickSize(settings.tickSize, settings.position))
+    }
+    return axis;
+  }
+
+  /** Parse the tick size to see if it is a percentage */
+  private getTickSize(value, axisPosition: string) {
+    if (typeof value === 'string' && value.slice(-1) === '%') {
+      const axisType = axisPosition === 'left' || axisPosition === 'right' ? 'y' : 'x';
+
+      return (parseFloat(value) / 100) * (axisType === 'x' ? this.height : this.width );
+    }
+    return value;
   }
 
   /**
@@ -486,15 +510,31 @@ export class GraphService {
    * @param data
    */
   private getExtent(): { x: Array<number>, y: Array<number> } {
-    if (!this.data.length) { return { x: [0, 1], y: [0, 1] }; }
     const extents: any = {};
+    // check for extents in settings
+    const override = { x: false, y: false };
+    if (this.settings.axis.x.hasOwnProperty('extent') && this.settings.axis.x['extent'].length === 2) {
+      override.x = true;
+      extents.x = this.settings.axis.x['extent'];
+    }
+    if (this.settings.axis.y.hasOwnProperty('extent') && this.settings.axis.y['extent'].length === 2) {
+      override.y = true;
+      extents.y = this.settings.axis.y['extent'];
+    }
+    // return if manually setting the x and y extents
+    if (override.x && override.x) { return extents; }
+    // return if we need to calculate an extent but there is no data
+    if (!this.data.length && !extents.x && !extents.y) { return { x: [0, 1], y: [0, 1] }; }
     for (const dp of this.data) {
-      const setExtent = {
-        x: extent(dp.data, (d) => parseFloat(d[this.settings.props.x])),
-        y: extent(dp.data, (d) => parseFloat(d[this.settings.props.y]))
-      };
-      extents.x = extents.x ? extent([...extents.x, ...setExtent.x]) : setExtent.x;
-      extents.y = extents.y ? extent([...extents.y, ...setExtent.y]) : setExtent.y;
+      const setExtent = { x: null, y: null };
+      if (!override.x) {
+        setExtent.x = extent(dp.data, (d) => parseFloat(d[this.settings.props.x]));
+        extents.x = extents.x ? extent([...extents.x, ...setExtent.x]) : setExtent.x;
+      }
+      if (!override.y) {
+        setExtent.y = extent(dp.data, (d) => parseFloat(d[this.settings.props.y]))
+        extents.y = extents.y ? extent([...extents.y, ...setExtent.y]) : setExtent.y;
+      }
     }
     return extents;
   }
@@ -515,8 +555,12 @@ export class GraphService {
         x: scaleBand().rangeRound([0, this.width]).padding(0.25),
         y: scaleLinear().rangeRound([this.height, 0])
       };
+      const yDomain = 
+        this.settings.axis.y.hasOwnProperty('extent') && this.settings.axis.y.extent.length === 2 ? 
+          this.settings.axis.y.extent : 
+          [0, max(this.data, (d: any) => parseFloat(d.data[0][this.settings.props.y]))];
       scales.x.domain(this.data.map((d) => d.data[0][this.settings.props.x]));
-      scales.y.domain([0, max(this.data, (d: any) => parseFloat(d.data[0][this.settings.props.y]))]);
+      scales.y.domain(yDomain);
       return scales;
     }
   }
@@ -534,5 +578,11 @@ export class GraphService {
       }
     }
     return 'bar';
+  }
+
+  private log(...logItems) {
+    if (this.settings.debug) {
+      console.debug.apply(this, logItems);
+    }
   }
 }

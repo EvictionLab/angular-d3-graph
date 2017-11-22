@@ -7,12 +7,15 @@ import { Component, OnInit } from '@angular/core';
 })
 export class AppComponent implements OnInit {
   title = 'app';
-  data = this.getBarGraphData();
+  data = this.getLineGraphData();
   toggle = true;
   x1;
   x2;
   settings = {
-    axis: { x: { 'label': 'Year'}, y: { 'label': 'Evictions'} }
+    axis: {
+      x: { 'label': 'Year', tickSize: '-100%' },
+      y: { 'label': 'Evictions', tickSize: '-100%', ticks: 5, extent: [0, 50]}
+    }
   };
 
   ngOnInit() {}
