@@ -18,7 +18,16 @@ export class AppComponent implements OnInit {
     }
   };
 
-  ngOnInit() {}
+  ngOnInit() {
+    setTimeout(() => {
+      this.settings = {
+        axis: {
+          x: { 'label': 'NEW Year', tickSize: '-100%' },
+          y: { 'label': 'NEW Evictions', tickSize: '-100%', ticks: 10, extent: [0, 50]}
+        }
+      };
+    }, 5000);
+  }
 
   getLineGraphData() {
     return [

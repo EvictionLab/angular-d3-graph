@@ -51,6 +51,7 @@ export class GraphComponent implements OnChanges, OnInit {
     }
     if (changes.settings && this.graph.isCreated()) {
       this.graph.updateSettings(changes.settings.currentValue);
+      this.graph.updateView(true); // update settings w/ no transition
     }
     if (
       (changes.x1 || changes.x2) &&

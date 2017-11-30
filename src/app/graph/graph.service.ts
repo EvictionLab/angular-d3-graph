@@ -142,6 +142,9 @@ export class GraphService {
         .transition().duration(this.settings.transition.duration)
         .call(axisGenerator.scale(scale));
     }
+    // update axis label
+    this.container.selectAll('g.axis-' + axisType + ' .label-' + axisType)
+      .text(this.settings.axis[axisType]['label'] || '');
     return this;
   }
 
@@ -291,7 +294,7 @@ export class GraphService {
         .attr('transform', 'translate(' + this.width / 2 + ',' + margin.bottom + ')')
         .attr('text-anchor', 'middle')
         .attr('dy', -10)
-        .text(this.settings.axis.x.label);
+        ;
     this.svg.selectAll('g.axis-y')
       .attr('transform', this.getAxisTransform(this.settings.axis.y.position))
       .selectAll('.label-y')
