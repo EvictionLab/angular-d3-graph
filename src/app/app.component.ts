@@ -12,6 +12,7 @@ export class AppComponent implements OnInit {
   x1;
   x2;
   settings = {
+    margin: {left: 120},
     axis: {
       x: { 'label': 'Year', tickSize: '-100%' },
       y: { 'label': 'Evictions', tickSize: '-100%', ticks: 5}
@@ -21,6 +22,7 @@ export class AppComponent implements OnInit {
   ngOnInit() {
     setTimeout(() => {
       this.settings = {
+        margin: {left: 60},
         axis: {
           x: { 'label': 'NEW Year', tickSize: '-100%' },
           y: { 'label': 'NEW Evictions', tickSize: '-100%', ticks: 10 }

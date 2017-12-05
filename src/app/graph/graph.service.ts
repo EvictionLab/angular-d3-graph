@@ -299,7 +299,7 @@ export class GraphService {
       .attr('transform', this.getAxisTransform(this.settings.axis.y.position))
       .selectAll('.label-y')
         .attr('transform', 'rotate(-90) translate(' + -this.height / 2 + ',' + -margin.left + ')')
-        .attr('dy', 10)
+        .attr('dy', margin.left/2)
         .attr('text-anchor', 'middle')
         .text(this.settings.axis.y.label);
     this.log('setting dimensions', this.width, this.height, margin);
