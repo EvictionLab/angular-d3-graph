@@ -517,7 +517,7 @@ export class GraphService {
    * @param data
    */
   private getExtent(): { x: Array<number>, y: Array<number> } {
-    const extents: any = {};
+    let extents: any = {};
     // check for extents in settings
     const override = { x: false, y: false };
     if (this.settings.axis.x.hasOwnProperty('extent') && this.settings.axis.x['extent'].length === 2) {
@@ -543,6 +543,8 @@ export class GraphService {
         extents.y = extents.y ? extent([...extents.y, ...setExtent.y]) : setExtent.y;
       }
     }
+    // pad y extent by 10%
+    extents.y = this.padExtent(extents.y);
     return extents;
   }
 
@@ -562,14 +564,18 @@ export class GraphService {
         x: scaleBand().rangeRound([0, this.width]).padding(0.25),
         y: scaleLinear().rangeRound([this.height, 0])
       };
+      const maxY = max(this.data, (d: any) => parseFloat(d.data[0][this.settings.props.y]));
       const yDomain = 
         this.settings.axis.y.hasOwnProperty('extent') && this.settings.axis.y.extent.length === 2 ? 
-          this.settings.axis.y.extent : 
-          [0, max(this.data, (d: any) => parseFloat(d.data[0][this.settings.props.y]))];
+          this.settings.axis.y.extent : this.padExtent([0, maxY]);
       scales.x.domain(this.data.map((d) => d.data[0][this.settings.props.x]));
       scales.y.domain(yDomain);
       return scales;
     }
+  }
+
+  private padExtent(extent: Array<number>, amount = 0.1): Array<number> {
+    return [extent[0], extent[1] + (extent[1] - extent[0]) * amount];
   }
 
   /**

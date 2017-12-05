@@ -7,14 +7,14 @@ import { Component, OnInit } from '@angular/core';
 })
 export class AppComponent implements OnInit {
   title = 'app';
-  data = this.getLineGraphData();
+  data = this.getBarGraphData();
   toggle = true;
   x1;
   x2;
   settings = {
     axis: {
       x: { 'label': 'Year', tickSize: '-100%' },
-      y: { 'label': 'Evictions', tickSize: '-100%', ticks: 5, extent: [0, 50]}
+      y: { 'label': 'Evictions', tickSize: '-100%', ticks: 5}
     }
   };
 
@@ -23,7 +23,7 @@ export class AppComponent implements OnInit {
       this.settings = {
         axis: {
           x: { 'label': 'NEW Year', tickSize: '-100%' },
-          y: { 'label': 'NEW Evictions', tickSize: '-100%', ticks: 10, extent: [0, 50]}
+          y: { 'label': 'NEW Evictions', tickSize: '-100%', ticks: 10 }
         }
       };
     }, 5000);
