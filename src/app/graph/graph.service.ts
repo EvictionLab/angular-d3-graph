@@ -544,7 +544,7 @@ export class GraphService {
       }
     }
     // pad y extent by 10%
-    extents.y = this.padExtent(extents.y);
+    extents.y = this.padExtent(extents.y, 0.1, {top: true, bottom: true});
     return extents;
   }
 
@@ -567,15 +567,19 @@ export class GraphService {
       const maxY = max(this.data, (d: any) => parseFloat(d.data[0][this.settings.props.y]));
       const yDomain = 
         this.settings.axis.y.hasOwnProperty('extent') && this.settings.axis.y.extent.length === 2 ? 
-          this.settings.axis.y.extent : this.padExtent([0, maxY]);
+          this.settings.axis.y.extent : this.padExtent([0, maxY], 0.1, { top: true });
       scales.x.domain(this.data.map((d) => d.data[0][this.settings.props.x]));
       scales.y.domain(yDomain);
       return scales;
     }
   }
 
-  private padExtent(extent: Array<number>, amount = 0.1): Array<number> {
-    return [extent[0], extent[1] + (extent[1] - extent[0]) * amount];
+  /** Pads the min / max of an extent array by the provided amount */
+  private padExtent(extent: Array<number>, amount = 0.1, options: any = {}): Array<number> {
+    const padding = (extent[1] - extent[0]) * amount;
+    const min = options.bottom ? extent[0] - padding : extent[0];
+    const max = options.top ? extent[1] + padding : extent[1];
+    return [min, max];
   }
 
   /**
