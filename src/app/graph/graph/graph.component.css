@@ -21,20 +21,22 @@
     font-size:12px;
 }
 
-.g1-start {
-    stop-color: red;
-}
-.g1-end {
-    stop-color: blue;
-}
+.g0-start { stop-color: #F27636; }
+.g0-end { stop-color: #E04119; }
+.g1-start { stop-color: #787EB0; }
+.g1-end { stop-color: #434878; }
+.g2-start { stop-color: #57BEB6; }
+.g2-end { stop-color: #2C897F; }
+.g3-start { stop-color: #C6D5E0; }
+.g3-end { stop-color: #94AABD; }
 
 .app-graph .line-1 { stroke: #666; }
 .app-graph .line-2 { stroke: #333; }
 .app-graph .line-3 { stroke: #999; }
 .app-graph .line-4 { stroke: #ccc; }
-.app-graph .bar-0 { fill: #666; }
-.app-graph .bar-1 { fill: #333; }
-.app-graph .bar-2 { fill: #999; }
-.app-graph .bar-3 { fill: #ccc; }
+.app-graph .bar-0 { fill: url(#g0); }
+.app-graph .bar-1 { fill: url(#g1); }
+.app-graph .bar-2 { fill: url(#g2); }
+.app-graph .bar-3 { fill: url(#g3); }
 
 .app-graph .graph-rect { fill:none; stroke: none;  }
