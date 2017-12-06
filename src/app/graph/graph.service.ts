@@ -37,6 +37,7 @@ export class GraphService {
   private dataContainer;
   private dataRect; // rectangle around the bounds of the graph data
   private clip;
+  private defs;
   private scales;
   private transform = zoomIdentity;
   private created = false;
@@ -393,13 +394,26 @@ export class GraphService {
     };
   }
 
+  private addToDefs() {
+
+  }
+
   private createSvg() {
     this.svg = this.d3el.append('svg');
     // data rect
     this.dataRect = this.svg.append('rect')
       .attr('class', 'graph-rect');
+    // defs
+    this.defs = this.svg.append('defs');
+    // gradients
+    for (let i = 0; i < 4; i++) {
+      const g = this.defs.append('linearGradient').attr('id', 'g' + i)
+        .attr('x1', 0).attr('x2', 0).attr('y1', 0).attr('y2', 1);
+      g.append('stop').attr('offset', '0%').attr('class', 'g' + i + '-start');
+      g.append('stop').attr('offset', '100%').attr('class', 'g' + i + '-end');
+    }
     // clip area
-    this.clip = this.svg.append('defs')
+    this.clip = this.defs
       .append('clipPath').attr('id', 'data-container')
       .append('rect').attr('x', 0).attr('y', 0);
     // containers for axis

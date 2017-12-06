@@ -7,7 +7,7 @@ import { Component, OnInit } from '@angular/core';
 })
 export class AppComponent implements OnInit {
   title = 'app';
-  data = this.getLineGraphData();
+  data = this.getBarGraphData();
   toggle = true;
   x1;
   x2;

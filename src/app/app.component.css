@@ -3,4 +3,9 @@ app-graph {
     width:100%;
     padding-top:56.5%;
     position:relative;
+
+}
+
+app-graph ::ng-deep .g1-start {
+    stop-color: #ff0;    
 }
