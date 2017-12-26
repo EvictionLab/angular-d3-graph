@@ -71,25 +71,27 @@ export class GraphComponent implements OnChanges, OnInit {
   @HostListener('mousemove', ['$event'])
   onMouseMove(e) {
     if (this.graph.isLineGraph()) {
-      const hoveredValues = this.graph.getValueAtPosition(e.offsetX);
+      const offset = this.getOffset(e);
+      const hoveredValues = this.graph.getValueAtPosition(offset.x);
       this.activeValues = this.hoverAll ?
-        hoveredValues : this.getClosestLine(e.offsetY, hoveredValues);
+        hoveredValues : this.getClosestLine(offset.y, hoveredValues);
     }
   }
 
   @HostListener('touchmove', ['$event'])
   onTouchMove(e) {
     if (e.touches && e.touches.length === 1 && this.graph.isLineGraph()) {
-      const hoveredValues = this.graph.getValueAtPosition(e.touches[0].offsetX);
+      const offset = this.getOffset(e.touches[0]);
+      const hoveredValues = this.graph.getValueAtPosition(offset.x);
       this.activeValues = this.hoverAll ?
-        hoveredValues : this.getClosestLine(e.touches[0].offsetY, hoveredValues);
+        hoveredValues : this.getClosestLine(offset.y, hoveredValues);
     }
   }
 
   @HostListener('click', ['$event'])
   onClick(e) {
     if (this.graph.isLineGraph()) {
-      const clickedValues = this.graph.getValueAtPosition(e.offsetX);
+      const clickedValues = this.graph.getValueAtPosition(this.getOffset(e).x);
       this.activeValues = clickedValues;
     }
   }
@@ -127,6 +129,18 @@ export class GraphComponent implements OnChanges, OnInit {
   @HostListener('mouseleave', ['$event'])
   onLeave(e) {
     this.activeValues = null;
+  }
+
+  /**
+   * Polyfill for offset on events based on https://stackoverflow.com/a/30708924
+   * @param event
+   */
+  private getOffset(event) {
+    const rect = this.element.nativeElement.getBoundingClientRect();
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    };
   }
 
   private getClosestLine(yValue, lines) {
