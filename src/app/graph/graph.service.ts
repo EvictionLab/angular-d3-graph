@@ -19,8 +19,8 @@ export class GraphService {
     props: { x: 'x', y: 'y' },
     margin: { left: 48, right: 10, top: 10, bottom: 48 },
     axis: {
-      x: { position: 'bottom', label: 'x', invert: false, extent: [] },
-      y: { position: 'left', label: 'y', invert: false, extent: [] }
+      x: { position: 'bottom', label: 'x', invert: false, extent: [], minVal: null },
+      y: { position: 'left', label: 'y', invert: false, extent: [], minVal: 1 / 1.1 }
     },
     transition: { ease: easePoly, duration: 1000 },
     zoom: { enabled: false, min: 1, max: 10 },
@@ -171,8 +171,10 @@ export class GraphService {
       bars.transition().ease(this.settings.transition.ease)
         .duration(this.settings.transition.duration)
         .attr('class', (d, i) => 'bar bar-' + i)
-        .attr('height', (d) => Math.max(0, this.height - this.scales.y(d.data[0][this.settings.props.y])))
-        .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]))
+        .attr('height', (d) => Math.max(
+          0, this.height - this.scales.y(this.getBarDisplayVal(d.data[0][this.settings.props.y], this.scales.y))
+        ))
+        .attr('y', (d) => this.scales.y(this.getBarDisplayVal(d.data[0][this.settings.props.y], this.scales.y)))
         .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
         .attr('width', this.scales.x.bandwidth());
     };
@@ -367,6 +369,16 @@ export class GraphService {
       return [{ id: this.data[newIndex].id, ...this.data[newIndex].data[0], ...this.getBarRect(el), el: el }];
     }
     return null;
+  }
+
+  /**
+   * Display a minimum line for bar graph values that is 1% of the maximum value
+   * @param val
+   * @param scale
+   */
+  private getBarDisplayVal(val, scale) {
+    const scaleDomain = scale.domain();
+    return val >= 0.1 ? val : scaleDomain[scaleDomain.length - 1] * 0.01;
   }
 
   /**
@@ -578,9 +590,11 @@ export class GraphService {
         x: scaleBand().rangeRound([0, this.width]).padding(0.25),
         y: scaleLinear().rangeRound([this.height, 0])
       };
-      const maxY = max(this.data, (d: any) => parseFloat(d.data[0][this.settings.props.y]));
-      const yDomain = 
-        this.settings.axis.y.hasOwnProperty('extent') && this.settings.axis.y.extent.length === 2 ? 
+      // Set max Y value in scale to at least minVal
+      let maxY = max(this.data, (d: any) => parseFloat(d.data[0][this.settings.props.y]));
+      maxY = Math.max(this.settings.axis.y.minVal, maxY);
+      const yDomain =
+        this.settings.axis.y.hasOwnProperty('extent') && this.settings.axis.y.extent.length === 2 ?
           this.settings.axis.y.extent : this.padExtent([0, maxY], 0.1, { top: true });
       scales.x.domain(this.data.map((d) => d.data[0][this.settings.props.x]));
       scales.y.domain(yDomain);
