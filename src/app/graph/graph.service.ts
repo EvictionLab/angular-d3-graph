@@ -336,6 +336,7 @@ export class GraphService {
     const values = [];
     selectAll('.line').each(function (d: any) {
       const i = self.bisectX(d.data, currentX, 1);
+      const NULL_VAL = { id: d.id, x: null, y: null, xPos: null, yPos: null };
       if (d.data.length && d.data[i]) {
         const x0 = d.data[i - 1][self.settings.props.x];
         const x1 = d.data[i][self.settings.props.x];
@@ -343,9 +344,9 @@ export class GraphService {
         const boundedIndex = Math.min(d.data.length - 1, Math.max(0, closestIndex + offset));
         // Only push value if less than a full stop away from the closest
         const val = self.getLineEventValue(d, boundedIndex, this);
-        if (Math.abs(currentX - val.x) < 1) {
-          values.push(val);
-        }
+        values.push(Math.abs(currentX - val.x) < 1 ? val : NULL_VAL);
+      } else {
+        values.push(NULL_VAL);
       }
     });
     return values;
