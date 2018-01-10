@@ -7,7 +7,7 @@ import { axisRight, axisBottom, axisLeft, axisTop } from 'd3-axis';
 import { extent, max, bisector, scan } from 'd3-array';
 import { format } from 'd3-format';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
-import { line } from 'd3-shape';
+import { lineChunked } from 'd3-line-chunked';
 import * as _merge from 'lodash.merge';
 
 @Injectable()
@@ -207,25 +207,41 @@ export class GraphService {
   renderLines(transform = this.transform) {
     const lineData = (this.type === 'line' ? this.data : []);
     const extent = this.getExtent();
-    const lines = this.dataContainer.selectAll('.line').data(lineData, (d) => d.id);
-    const flatLine = line()
+    const lines = this.dataContainer.selectAll('g.line').data(lineData, (d) => d.id);
+    const linesEnter = lines.enter().append('g')
+      .attr('class', (d, i) => 'line line-' + i);
+
+    const flatLine = lineChunked()
+      .accessData(d => d.data)
       .defined((d: any) => !isNaN(d[this.settings.props.y]))
       .x((d: any, index: any, da: any) => this.scales.x(d.x))
       .y(this.scales.y(extent.y[0]));
 
-    const valueLine = line().defined((d: any) => !isNaN(d[this.settings.props.y]))
+    const valueLine = lineChunked()
+      .accessData(d => d.data)
+      .defined((d: any) => !isNaN(d[this.settings.props.y]))
       .x((d: any, index: any, da: any) => this.scales.x(d.x))
-      .y((d: any) => this.scales.y(d[this.settings.props.y]));
+      .y((d: any) => this.scales.y(d[this.settings.props.y]))
+      .lineAttrs({
+        class: (d, i) => 'line line-' + i,
+        transform: 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)',
+        'vector-effect': 'non-scaling-stroke'
+      })
+      .chunkDefinitions({
+        gap: { styles: { 'stroke-dasharray': '2, 2' } }
+      });
 
-    const update = () => {
-      lines
-        .attr('class', (d, i) => 'line line-' + i)
-        .attr('transform', 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)')
-        .attr('vector-effect', 'non-scaling-stroke')
-        .transition().ease(this.settings.transition.ease)
-        .duration(this.settings.transition.duration)
-        .attr('d', (d) => valueLine(d.data));
-    };
+    // Transition from flat line on enter
+    linesEnter.call(flatLine)
+      .transition()
+      .ease(this.settings.transition.ease)
+      .duration(this.settings.transition.duration)
+      .call(valueLine);
+
+    lines.transition()
+      .ease(this.settings.transition.ease)
+      .duration(this.settings.transition.duration)
+      .call(valueLine);
 
     // transition out lines no longer present
     lines.exit()
@@ -233,24 +249,9 @@ export class GraphService {
       .transition()
       .ease(this.settings.transition.ease)
       .duration(this.settings.transition.duration)
-      .attr('d', (d) => flatLine(d.data))
+      .call(flatLine)
       .remove();
 
-    if (this.type === 'line') {
-      // update lines with new data
-      update();
-
-      // add lines for new data
-      lines.enter().append('path')
-        .attr('class', (d, i) => 'line line-enter line-' + i)
-        .attr('transform', 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)')
-        .attr('vector-effect', 'non-scaling-stroke')
-        .attr('d', (d) => flatLine(d.data))
-        .transition()
-        .ease(this.settings.transition.ease)
-        .duration(this.settings.transition.duration)
-        .attr('d', (d) => valueLine(d.data));
-    }
     return this;
   }
 
