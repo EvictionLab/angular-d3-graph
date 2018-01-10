@@ -335,7 +335,7 @@ export class GraphService {
     }
     const self = this;
     const values = [];
-    selectAll('.line').each(function (d: any) {
+    selectAll('g.line').each(function (d: any) {
       const i = self.bisectX(d.data, currentX, 1);
       const NULL_VAL = { id: d.id, x: null, y: null, xPos: null, yPos: null };
       if (d.data.length && d.data[i]) {
