@@ -522,6 +522,9 @@ export class GraphService {
     if (settings.hasOwnProperty('tickFormat') && settings.tickFormat) {
       axis = axis.tickFormat(format(settings.tickFormat));
     }
+    if (settings.hasOwnProperty('tickPadding') && settings.tickPadding) {
+      axis = axis.tickPadding(settings.tickPadding);
+    }
     this.log('created axis', axis, settings);
     return axis;
   }
