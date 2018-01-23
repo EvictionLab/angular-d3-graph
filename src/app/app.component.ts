@@ -29,10 +29,11 @@ export class AppComponent implements OnInit {
         margin: {left: 60},
         axis: {
           x: { 'label': 'NEW Year', tickSize: '-100%' },
-          y: { 'label': 'NEW Evictions', tickSize: '-100%', ticks: 10 }
+          y: { 'label': 'NEW Evictions', tickSize: '-100%', ticks: 5 }
         }
       };
-    }, 5000);
+      this.data = this.getBarGraphData();
+    }, 10000);
   }
 
   getLineGraphData() {
