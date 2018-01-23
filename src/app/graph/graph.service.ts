@@ -219,7 +219,7 @@ export class GraphService {
     const flatLine = lineChunked()
       .accessData(d => d.data)
       .defined((d: any) => !isNaN(d[this.settings.props.y]))
-      .x((d: any, index: any, da: any) => this.scales.x(d.x))
+      .x((d: any, index: any, da: any) => 0)
       .y(this.scales.y(extent.y[0]));
 
     const valueLine = lineChunked()
