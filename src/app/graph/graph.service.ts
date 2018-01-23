@@ -85,6 +85,7 @@ export class GraphService {
    * If any arguments are passed the rendered elements will not transition into place
    */
   updateView(...args) {
+    this.setDimensions();
     this.transform = zoomTransform(this.svg.node()) || zoomIdentity;
     this.scales = this.getScales();
     this.updateTitleDesc();
@@ -286,31 +287,38 @@ export class GraphService {
     this.width = this.el.clientWidth - margin.left - margin.right;
     this.height =
       this.el.getBoundingClientRect().height - margin.top - margin.bottom;
-    this.svg
-      .attr('width', this.width + margin.left + margin.right)
-      .attr('height', this.height + margin.top + margin.bottom);
-    this.container.attr('width', this.width).attr('height', this.height)
-      .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-    this.dataContainer.attr('width', this.width).attr('height', this.height)
-      .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-    this.clip.attr('width', this.width).attr('height', this.height);
-    this.dataRect.attr('width', this.width).attr('height', this.height)
+    // only set dimensions if width and height are valid
+    if (this.width > 0 && this.height > 0) {
+      this.svg
+        .attr('width', this.width + margin.left + margin.right)
+        .attr('height', this.height + margin.top + margin.bottom);
+      this.container.attr('width', this.width).attr('height', this.height)
         .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-    this.svg.selectAll('g.axis-x')
-      .attr('transform', this.getAxisTransform(this.settings.axis.x.position))
-      .selectAll('.label-x')
-        .attr('transform', 'translate(' + this.width / 2 + ',' + margin.bottom + ')')
-        .attr('text-anchor', 'middle')
-        .attr('dy', -10)
-        ;
-    this.svg.selectAll('g.axis-y')
-      .attr('transform', this.getAxisTransform(this.settings.axis.y.position))
-      .selectAll('.label-y')
-        .attr('transform', 'rotate(-90) translate(' + -this.height / 2 + ',' + -margin.left + ')')
-        .attr('dy', margin.left/2)
-        .attr('text-anchor', 'middle')
-        .text(this.settings.axis.y.label);
-    this.log('setting dimensions', this.width, this.height, margin);
+      this.dataContainer.attr('width', this.width).attr('height', this.height)
+        .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+      this.clip.attr('width', this.width).attr('height', this.height);
+      this.dataRect.attr('width', this.width).attr('height', this.height)
+          .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+      this.svg.selectAll('g.axis-x')
+        .attr('transform', this.getAxisTransform(this.settings.axis.x.position))
+        .selectAll('.label-x')
+          .attr('transform', 'translate(' + this.width / 2 + ',' + margin.bottom + ')')
+          .attr('text-anchor', 'middle')
+          .attr('dy', -10)
+          ;
+      this.svg.selectAll('g.axis-y')
+        .attr('transform', this.getAxisTransform(this.settings.axis.y.position))
+        .selectAll('.label-y')
+          .attr('transform', 'rotate(-90) translate(' + -this.height / 2 + ',' + -margin.left + ')')
+          .attr('dy', margin.left / 2)
+          .attr('text-anchor', 'middle')
+          .text(this.settings.axis.y.label);
+      this.log('setting dimensions', this.width, this.height, margin);
+    } else {
+      this.width = 1;
+      this.height = 1;
+    }
+
     return this;
   }
 

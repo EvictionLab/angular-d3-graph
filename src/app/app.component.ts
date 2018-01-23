@@ -7,7 +7,7 @@ import { Component, OnInit } from '@angular/core';
 })
 export class AppComponent implements OnInit {
   title = 'app';
-  data = this.getBarGraphData();
+  data = this.getLineGraphData();
   toggle = true;
   x1;
   x2;
@@ -32,6 +32,7 @@ export class AppComponent implements OnInit {
           y: { 'label': 'NEW Evictions', tickSize: '-100%', ticks: 10 }
         }
       };
+      this.data = this.getBarGraphData();
     }, 5000);
   }
 
@@ -44,9 +45,6 @@ export class AppComponent implements OnInit {
 
   getBarGraphData() {
     return [
-      { id: 'us-avg-bar', data: [ { x: 'United States Average', y: 1200 } ] },
-      { id: 'new-york-bar', data: [ { x: 'New York', y: 1600 } ] },
-      { id: 'else-bar', data: [ { x: 'Somewhere Else', y: 600 } ] }
     ];
   }
 
