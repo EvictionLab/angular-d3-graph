@@ -16,6 +16,7 @@ export class GraphService {
   svg;
   data: any = [];
   settings = {
+    id: 'd3graph',
     props: { x: 'x', y: 'y' },
     margin: { left: 48, right: 10, top: 10, bottom: 48 },
     axis: {
@@ -42,6 +43,8 @@ export class GraphService {
   private transform = zoomIdentity;
   private created = false;
   private bisectX = bisector((d) => d[this.settings.props.x]).left;
+  private title;
+  private desc;
 
   /**
    * initializes the SVG element for the graph
@@ -84,6 +87,7 @@ export class GraphService {
   updateView(...args) {
     this.transform = zoomTransform(this.svg.node()) || zoomIdentity;
     this.scales = this.getScales();
+    this.updateTitleDesc();
     this.renderAxis(this.settings.axis.x, this.transform, args.length > 0)
       .renderAxis(this.settings.axis.y, this.transform, args.length > 0);
     this.type === 'line' ? this.renderLines() : this.renderBars();
@@ -405,6 +409,7 @@ export class GraphService {
     };
   }
 
+  /** Gets the position and size of a passed `rect` element */
   private getBarRect(el) {
     return {
       top: parseFloat(el.getAttribute('y')) + this.settings.margin.top,
@@ -414,12 +419,11 @@ export class GraphService {
     };
   }
 
-  private addToDefs() {
-
-  }
-
+  /** Creates the skeleton DOM structure of the SVG */
   private createSvg() {
     this.svg = this.d3el.append('svg');
+    this.title = this.svg.append('title');
+    this.desc = this.svg.append('desc');
     // data rect
     this.dataRect = this.svg.append('rect')
       .attr('class', 'graph-rect');
@@ -447,7 +451,7 @@ export class GraphService {
       .attr('clip-path', 'url(#data-container)')
       .attr('class', 'data-container');
     this.log('created svg', this.svg);
-  } 
+  }
 
   /**
    * Creates the zoom behaviour for the graph then sets it up based on
@@ -554,7 +558,7 @@ export class GraphService {
    * @param data
    */
   private getExtent(): { x: Array<number>, y: Array<number> } {
-    let extents: any = {};
+    const extents: any = {};
     // check for extents in settings
     const override = { x: false, y: false };
     if (this.settings.axis.x.hasOwnProperty('extent') && this.settings.axis.x['extent'].length === 2) {
@@ -636,6 +640,23 @@ export class GraphService {
     return 'bar';
   }
 
+  /**
+   * Set the title and description for the graph based on settings and also add
+   * the aria-labelledby attr as recommended by:
+   * https://css-tricks.com/accessible-svgs/
+   */
+  private updateTitleDesc() {
+    this.title
+      .attr('id', this.settings.id + '_title')
+      .text(this.settings['title'] ? this.settings['title'] : '');
+    this.desc
+      .attr('id', this.settings.id + '_desc')
+      .text(this.settings['description'] ? this.settings['description'] : '');
+    this.svg
+      .attr('aria-labelledby', `${this.settings.id}_title ${this.settings.id}_desc`);
+  }
+
+  /** Wrapper for console logging if debug is enabled */
   private log(...logItems) {
     if (this.settings.debug) {
       console.debug.apply(this, logItems);

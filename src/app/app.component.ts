@@ -12,6 +12,8 @@ export class AppComponent implements OnInit {
   x1;
   x2;
   settings = {
+    title: 'Sample Bar Graph',
+    description: 'A bar graph example',
     margin: {left: 120},
     axis: {
       x: { 'label': 'Year', tickSize: '-100%' },
@@ -22,6 +24,8 @@ export class AppComponent implements OnInit {
   ngOnInit() {
     setTimeout(() => {
       this.settings = {
+        title: 'Updated Sample Bar Graph',
+        description: 'An updated bar graph example',
         margin: {left: 60},
         axis: {
           x: { 'label': 'NEW Year', tickSize: '-100%' },
