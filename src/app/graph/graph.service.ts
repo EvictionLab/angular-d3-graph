@@ -220,7 +220,8 @@ export class GraphService {
       .accessData(d => d.data)
       .defined((d: any) => !isNaN(d[this.settings.props.y]))
       .x((d: any, index: any, da: any) => 0)
-      .y(this.scales.y(extent.y[0]));
+      .y(this.scales.y(extent.y[0]))
+      .pointAttrs({ r: 0 });
 
     const valueLine = lineChunked()
       .accessData(d => d.data)
@@ -232,9 +233,8 @@ export class GraphService {
         transform: 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)',
         'vector-effect': 'non-scaling-stroke'
       })
-      .chunkDefinitions({
-        gap: { styles: { 'stroke-dasharray': '2, 2' } }
-      });
+      .gapStyles({ 'stroke-opacity': 0 })
+      .pointAttrs({ r: 5 });
 
     // Transition from flat line on enter
     linesEnter.call(flatLine)
