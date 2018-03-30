@@ -20,8 +20,8 @@ export class GraphService {
     props: { x: 'x', y: 'y' },
     margin: { left: 48, right: 10, top: 10, bottom: 48 },
     axis: {
-      x: { position: 'bottom', label: 'x', invert: false, extent: [], minVal: null },
-      y: { position: 'left', label: 'y', invert: false, extent: [], minVal: 1 / 1.1 }
+      x: { position: 'bottom', label: 'x', invert: false, extent: [], minVal: null, maxVal: null },
+      y: { position: 'left', label: 'y', invert: false, extent: [], minVal: 1 / 1.1, maxVal: 100 }
     },
     transition: { ease: easePoly, duration: 1000 },
     zoom: { enabled: false, min: 1, max: 10 },
@@ -408,11 +408,13 @@ export class GraphService {
    * @param el the DOM line element
    */
   private getLineEventValue(dataItem, pointIndex, el) {
+    let yVal = dataItem.data[pointIndex][this.settings.props.y];
+    yVal = this.settings.axis.y.maxVal > 0 ? Math.min(this.settings.axis.y.maxVal, yVal) : yVal;
     return {
       id: dataItem.id,
       ...dataItem.data[pointIndex],
       xPos: (this.settings.margin.left + this.scales.x(dataItem.data[pointIndex][this.settings.props.x])),
-      yPos: (this.settings.margin.top + this.scales.y(dataItem.data[pointIndex][this.settings.props.y])),
+      yPos: (this.settings.margin.top + this.scales.y(yVal)),
       el: el
     };
   }
@@ -604,6 +606,10 @@ export class GraphService {
     if (this.type === 'line') {
       const ranges = this.getRange();
       const extents = this.getExtent();
+      // Cap Y extent to maxVal if present
+      if (this.settings.axis.y.maxVal > 0) {
+        extents.y[1] = Math.min(extents.y[1], this.settings.axis.y.maxVal);
+      }
       return {
         x: scaleLinear().range(ranges.x).domain(extents.x),
         y: scaleLinear().range(ranges.y).domain(extents.y)
@@ -613,12 +619,19 @@ export class GraphService {
         x: scaleBand().rangeRound([0, this.width]).padding(0.25),
         y: scaleLinear().rangeRound([this.height, 0])
       };
-      // Set max Y value in scale to at least minVal
+      // Set max Y value in scale to at least minVal, at most maxVal
       let maxY = max(this.data, (d: any) => parseFloat(d.data[0][this.settings.props.y]));
       maxY = Math.max(this.settings.axis.y.minVal, maxY);
-      const yDomain =
-        this.settings.axis.y.hasOwnProperty('extent') && this.settings.axis.y.extent.length === 2 ?
-          this.settings.axis.y.extent : this.padExtent([0, maxY], 0.1, { top: true });
+      if (this.settings.axis.y.maxVal > 0) {
+        maxY = Math.min(this.settings.axis.y.maxVal, maxY);
+      }
+      // Cap Y domain to maxVal without padding if present
+      let yDomain;
+      if (this.settings.axis.y.hasOwnProperty('extent') && this.settings.axis.y.extent.length === 2) {
+        yDomain = this.settings.axis.y.extent;
+      } else {
+        yDomain = this.settings.axis.y.maxVal === maxY ? [0, maxY] : this.padExtent([0, maxY], 0.1, { top: true });
+      }
       scales.x.domain(this.data.map((d) => d.data[0][this.settings.props.x]));
       scales.y.domain(yDomain);
       return scales;
