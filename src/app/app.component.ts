@@ -7,7 +7,7 @@ import { Component, OnInit } from '@angular/core';
 })
 export class AppComponent implements OnInit {
   title = 'app';
-  data = this.getBarGraphData();
+  data = this.getLineGraphData();
   toggle = true;
   x1;
   x2;
@@ -17,23 +17,11 @@ export class AppComponent implements OnInit {
     margin: {left: 120},
     axis: {
       x: { 'label': 'Year', tickSize: '-100%' },
-      y: { 'label': 'Evictions', tickSize: '-100%', ticks: 5}
+      y: { 'label': 'Evictions', tickSize: '-100%', ticks: 5, minVal: -150, maxVal: -50 }
     }
   };
 
   ngOnInit() {
-    setTimeout(() => {
-      this.settings = {
-        title: 'Updated Sample Bar Graph',
-        description: 'An updated bar graph example',
-        margin: {left: 60},
-        axis: {
-          x: { 'label': 'NEW Year', tickSize: '-100%' },
-          y: { 'label': 'NEW Evictions', tickSize: '-100%', ticks: 5 }
-        }
-      };
-      this.data = this.getBarGraphData();
-    }, 10000);
   }
 
   getLineGraphData() {
@@ -45,17 +33,17 @@ export class AppComponent implements OnInit {
 
   getBarGraphData() {
     return [
-      { id: 'us-avg-bar', data: [ { x: 'United States Average', y: 1200 } ] },
-      { id: 'new-york-bar', data: [ { x: 'New York', y: 1600 } ] },
+      { id: 'us-avg-bar', data: [ { x: 'New York', y: 1200 } ] },
+      { id: 'new-york-bar', data: [ { x: 'New Yorks', y: 1600 } ] },
       { id: 'else-bar', data: [ { x: 'Somewhere Else', y: 600 } ] }
     ];
   }
 
   createDataSet() {
     const d = [];
-    const base = Math.random() * 50;
+    const base = Math.random() * 100;
     for (let i = 0; i < 50; i++) {
-      d.push({ x: i, y: base + (Math.random() * 5) - 2.5 });
+      d.push({ x: i, y: base + (Math.random() * 1000) - 500 });
     }
     return d;
   }

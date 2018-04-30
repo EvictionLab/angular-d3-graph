@@ -21,7 +21,7 @@ export class GraphService {
     margin: { left: 48, right: 10, top: 10, bottom: 48 },
     axis: {
       x: { position: 'bottom', label: 'x', invert: false, extent: [], minVal: null, maxVal: null },
-      y: { position: 'left', label: 'y', invert: false, extent: [], minVal: 1 / 1.1, maxVal: 100 }
+      y: { position: 'left', label: 'y', invert: false, extent: [], minVal: null, maxVal: null }
     },
     transition: { ease: easePoly, duration: 1000 },
     zoom: { enabled: false, min: 1, max: 10 },
@@ -607,9 +607,11 @@ export class GraphService {
       const ranges = this.getRange();
       const extents = this.getExtent();
       // Set min Y to at least 0
-      extents.y[0] = Math.max(0, extents.y[0]);
+      if (!isNaN(this.settings.axis.y.minVal)) {
+        extents.y[0] = Math.max(this.settings.axis.y.minVal, extents.y[0]);
+      }
       // Cap Y extent to maxVal if present
-      if (this.settings.axis.y.maxVal > 0) {
+      if (!isNaN(this.settings.axis.y.maxVal)) {
         extents.y[1] = Math.min(extents.y[1], this.settings.axis.y.maxVal);
       }
       return {
@@ -623,8 +625,10 @@ export class GraphService {
       };
       // Set max Y value in scale to at least minVal, at most maxVal
       let maxY = max(this.data, (d: any) => parseFloat(d.data[0][this.settings.props.y]));
-      maxY = Math.max(this.settings.axis.y.minVal, maxY);
-      if (this.settings.axis.y.maxVal > 0) {
+      if (!isNaN(this.settings.axis.y.minVal)) {
+        maxY = Math.max(this.settings.axis.y.minVal, maxY);
+      }
+      if (!isNaN(this.settings.axis.y.maxVal)) {
         maxY = Math.min(this.settings.axis.y.maxVal, maxY);
       }
       // Cap Y domain to maxVal without padding if present
