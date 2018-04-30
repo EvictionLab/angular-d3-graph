@@ -606,6 +606,8 @@ export class GraphService {
     if (this.type === 'line') {
       const ranges = this.getRange();
       const extents = this.getExtent();
+      // Set min Y to at least 0
+      extents.y[0] = Math.max(0, extents.y[0]);
       // Cap Y extent to maxVal if present
       if (this.settings.axis.y.maxVal > 0) {
         extents.y[1] = Math.min(extents.y[1], this.settings.axis.y.maxVal);
