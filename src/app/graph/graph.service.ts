@@ -211,7 +211,7 @@ export class GraphService {
    */
   renderLines(transform = this.transform) {
     const lineData = (this.type === 'line' ? this.data : []);
-    const extent = this.getExtent();
+    const extent = this.getExtents();
     const lines = this.dataContainer.selectAll('g.line').data(lineData, (d) => d.id);
     const linesEnter = lines.enter().append('g')
       .attr('class', (d, i) => 'line line-' + i);
@@ -563,40 +563,39 @@ export class GraphService {
     };
   }
 
+  /** Gets the extents for the x and y axis */
+  private getExtents(): { x: Array<number>, y: Array<number> } {
+    return {
+      x: this.getExtent('x'),
+      y: this.getExtent('y')
+    };
+  }
+
   /**
-   * Gets the x and y extent of the data
-   * @param data
+   * Gets either the x or y extent
+   * @param prop either 'x' or 'y'
    */
-  private getExtent(): { x: Array<number>, y: Array<number> } {
-    const extents: any = {};
-    // check for extents in settings
-    const override = { x: false, y: false };
-    if (this.settings.axis.x.hasOwnProperty('extent') && this.settings.axis.x['extent'].length === 2) {
-      override.x = true;
-      extents.x = this.settings.axis.x['extent'];
+  private getExtent(prop: string): Array<number> {
+    const axis = this.settings.axis[prop];
+    // return if extent is explicitly set
+    if (axis.hasOwnProperty('extent') && axis['extent'].length === 2) {
+      return axis['extent'];
     }
-    if (this.settings.axis.y.hasOwnProperty('extent') && this.settings.axis.y['extent'].length === 2) {
-      override.y = true;
-      extents.y = this.settings.axis.y['extent'];
-    }
-    // return if manually setting the x and y extents
-    if (override.x && override.x) { return extents; }
-    // return if we need to calculate an extent but there is no data
-    if (!this.data.length && !extents.x && !extents.y) { return { x: [0, 1], y: [0, 1] }; }
+    // return if there is no data
+    if (!this.data.length) { return [0, 1]; }
+    // loop through data and create an extent representative of the entire data set
+    let xtnt: Array<number>;
     for (const dp of this.data) {
-      const setExtent = { x: null, y: null };
-      if (!override.x) {
-        setExtent.x = extent(dp.data, (d) => parseFloat(d[this.settings.props.x]));
-        extents.x = extents.x ? extent([...extents.x, ...setExtent.x]) : setExtent.x;
-      }
-      if (!override.y) {
-        setExtent.y = extent(dp.data, (d) => parseFloat(d[this.settings.props.y]))
-        extents.y = extents.y ? extent([...extents.y, ...setExtent.y]) : setExtent.y;
-      }
+      const setExtent = extent(dp.data, (d) => parseFloat(d[this.settings.props[prop]]));
+      xtnt = xtnt ? extent([...xtnt, ...setExtent]) : setExtent;
     }
     // pad y extent by 10%
-    extents.y = this.padExtent(extents.y, 0.1, {top: true, bottom: true});
-    return extents;
+    xtnt = prop === 'y' ? this.padExtent(xtnt, 0.1, {top: true, bottom: true}) : xtnt;
+    // Set min Y to minVal if needed
+    if (!isNaN(parseFloat(axis.minVal))) { xtnt[0] = Math.max(axis.minVal, xtnt[0]); }
+    // Cap Y extent to maxVal if present
+    if (!isNaN(parseFloat(axis.maxVal))) { xtnt[1] = Math.min(xtnt[1], axis.maxVal); }
+    return xtnt;
   }
 
   /**
@@ -605,15 +604,7 @@ export class GraphService {
   private getScales() {
     if (this.type === 'line') {
       const ranges = this.getRange();
-      const extents = this.getExtent();
-      // Set min Y to at least 0
-      if (!isNaN(this.settings.axis.y.minVal)) {
-        extents.y[0] = Math.max(this.settings.axis.y.minVal, extents.y[0]);
-      }
-      // Cap Y extent to maxVal if present
-      if (!isNaN(this.settings.axis.y.maxVal)) {
-        extents.y[1] = Math.min(extents.y[1], this.settings.axis.y.maxVal);
-      }
+      const extents = this.getExtents();
       return {
         x: scaleLinear().range(ranges.x).domain(extents.x),
         y: scaleLinear().range(ranges.y).domain(extents.y)
