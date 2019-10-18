@@ -30,13 +30,59 @@
 .g3-start { stop-color: #C6D5E0; }
 .g3-end { stop-color: #94AABD; }
 
-.app-graph .line-1 { stroke: #666; }
-.app-graph .line-2 { stroke: #333; }
-.app-graph .line-3 { stroke: #999; }
-.app-graph .line-4 { stroke: #ccc; }
+.app-graph .line-1 {
+  stroke: #666;
+}
+.app-graph .line-2 {
+  stroke: #333;
+}
+.app-graph .line-3 {
+  stroke: #999;
+}
+.app-graph .line-4 {
+  stroke: #ccc;
+}
+
+.app-graph .area-2 {
+  /* stroke: #666; */
+  fill: #666;
+}
+.app-graph .area-2 {
+  /* stroke: #333; */
+  fill: #333;
+}
+.app-graph .area-3 {
+  /* stroke: #999; */
+  fill:  #999;
+}
+.app-graph .area-4 {
+  /* stroke: #ccc; */
+  fill: #ccc;
+}
+
+.app-graph .area-0,
+.app-graph .area-1,
+.app-graph .area-2,
+.app-graph .area-3 {
+  fill-opacity: 0.5;
+  stroke-width: 6px;
+}
+
 .app-graph .bar-0 { fill: url(#g0); }
 .app-graph .bar-1 { fill: url(#g1); }
 .app-graph .bar-2 { fill: url(#g2); }
 .app-graph .bar-3 { fill: url(#g3); }
+
+.app-graph .bar-ci-0 { fill: url(#g0); }
+.app-graph .bar-ci-1 { fill: url(#g1); }
+.app-graph .bar-ci-2 { fill: url(#g2); }
+.app-graph .bar-ci-3 { fill: url(#g3); }
+
+.app-graph .bar-ci {
+  fill-opacity: 0.5;
+}
+
+
+
 
 .app-graph .graph-rect { fill:none; stroke: none;  }
