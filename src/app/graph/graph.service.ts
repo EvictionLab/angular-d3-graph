@@ -8,6 +8,7 @@ import { extent, max, bisector, scan } from 'd3-array';
 import { format } from 'd3-format';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { lineChunked } from 'd3-line-chunked';
+import { area } from 'd3-shape';
 import * as _merge from 'lodash.merge';
 
 @Injectable()
@@ -17,7 +18,7 @@ export class GraphService {
   data: any = [];
   settings = {
     id: 'd3graph',
-    props: { x: 'x', y: 'y' },
+    props: { x: 'x', y: 'y', ci: 'ci' },
     margin: { left: 48, right: 10, top: 10, bottom: 48 },
     axis: {
       x: { position: 'bottom', label: 'x', invert: false, extent: [], minVal: null, maxVal: null },
@@ -25,6 +26,9 @@ export class GraphService {
     },
     transition: { ease: easePoly, duration: 1000 },
     zoom: { enabled: false, min: 1, max: 10 },
+    ci: {
+      display: true
+    },
     debug: false
   };
   barHover = new EventEmitter();
@@ -91,7 +95,12 @@ export class GraphService {
     this.updateTitleDesc();
     this.renderAxis(this.settings.axis.x, this.transform, args.length > 0)
       .renderAxis(this.settings.axis.y, this.transform, args.length > 0);
-    this.type === 'line' ? this.renderLines() : this.renderBars();
+    if (this.type === 'line') {
+      this.renderLines();
+    } else {
+      this.renderBars();
+      // this.renderBarAreas();
+    }
   }
 
   /**
@@ -118,10 +127,13 @@ export class GraphService {
    * @param type type of graph to switch to
    */
   setType(type: string) {
+    console.log('setType');
     if (this.type !== type) {
       const oldType = this.type;
       this.type = type;
-      if (oldType === 'line') { this.renderLines(); }
+      if (oldType === 'line') {
+        this.renderLines();
+      }
       if (oldType === 'bar') { this.renderBars(); }
     }
   }
@@ -152,6 +164,83 @@ export class GraphService {
     this.container.selectAll('g.axis-' + axisType + ' .label-' + axisType)
       .text(this.settings.axis[axisType]['label'] || '');
     return this;
+  }
+
+  /**
+   * Renders areas to convey confidence interval for bars
+   * @return Boolean
+   */
+  renderBarCI() {
+    console.log('renderBarCI()');
+
+    const barData = (this.type === 'bar' ? this.data : []);
+    const barCIs = this.dataContainer.selectAll('.bar-ci').data(barData, (d) => d.id);
+    const self = this;
+
+    const barCIData = [];
+    barData.forEach((el, i) => {
+      // console.log('lineData.forEach');
+      var _data = el.data;
+      let ptArr = [];
+      _data.forEach((item, ind) => {
+        let _ci = item.ci;
+        // If it's the first, ci == 0,
+        // if it's the last, ci == 0
+        if (ind === 0 || ind === _data.length - 1) {
+          _ci = 0;
+        }
+        ptArr.push({
+          x: this.scales.x(item.x),
+          y: this.scales.y(item.y),
+          y0: this.scales.y(item.y - _ci),
+          y1: this.scales.y(item.y + _ci)
+        });
+      });
+      barCIData.push(ptArr);
+    });
+
+    // transition out bars no longer present
+    barCIs.exit()
+      .attr('class', (d, i) => 'bar-ci bar-ci-exit bar-ci-' + i)
+      .transition()
+      .ease(this.settings.transition.ease)
+      .duration(this.settings.transition.duration)
+      .attr('height', 0)
+      .attr('y', this.height)
+      .remove();
+
+    const update = () => {
+      barCIs.transition().ease(this.settings.transition.ease)
+        .duration(this.settings.transition.duration)
+        .attr('class', (d, i) => 'bar bar-' + i)
+        .attr('height', (d) => Math.max(
+          0, this.height - this.scales.y(this.getBarDisplayVal(d.data[0][this.settings.props.y], this.scales.y))
+        ))
+        .attr('y', (d) => this.scales.y(this.getBarDisplayVal(d.data[0][this.settings.props.y], this.scales.y)))
+        .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
+        .attr('width', this.scales.x.bandwidth());
+    };
+
+    if (this.type === 'bar') {
+      // update bars with new data
+      update();
+
+      // add bars for new data
+      barCIs.enter().append('rect')
+        .attr('class', (d, i) => 'bar bar-enter bar-' + i)
+        .on('mouseover', function(d) { self.barHover.emit({...d, ...self.getBarRect(this), el: this }); })
+        .on('mouseout',  function(d) { self.barHover.emit(null); })
+        .on('click',  function(d) { self.barClick.emit({...d, ...self.getBarRect(this), el: this }); })
+        .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
+        .attr('y', this.height)
+        .attr('width', this.scales.x.bandwidth())
+        .attr('height', 0)
+        .transition().ease(this.settings.transition.ease)
+          .duration(this.settings.transition.duration)
+          .attr('height', (d) => Math.max(0, this.height - this.scales.y(d.data[0][this.settings.props.y])))
+          .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]));
+    }
+    // return this;
   }
 
   /**
@@ -201,8 +290,103 @@ export class GraphService {
         .transition().ease(this.settings.transition.ease)
           .duration(this.settings.transition.duration)
           .attr('height', (d) => Math.max(0, this.height - this.scales.y(d.data[0][this.settings.props.y])))
-          .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]));
+          .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]))
+          .on('end', this.renderBarCI());
     }
+    return this;
+  }
+
+  /**
+   * Renders areas to convey confidence interval for lines
+   * @return Boolean
+   */
+  renderLineCI(transform = this.transform) {
+    if (!this.settings.ci.display) { return; }
+    // console.log('renderLineCI()');
+    const lineData = (this.type === 'line' ? this.data : []);
+    const extent = this.getExtents();
+    // Construct area data before binding data (because we need
+    // a bit different info than the lines themselves).
+    const areaData = [];
+    lineData.forEach((el, i) => {
+      // console.log('lineData.forEach');
+      var _data = el.data;
+      let ptArr = [];
+      _data.forEach((item, ind) => {
+        let _ci = item.ci;
+        // If it's the first, ci == 0,
+        // if it's the last, ci == 0
+        if (ind === 0 || ind === _data.length - 1) {
+          _ci = 0;
+        }
+        ptArr.push({
+          x: this.scales.x(item.x),
+          y: this.scales.y(item.y),
+          y0: this.scales.y(item.y - _ci),
+          y1: this.scales.y(item.y + _ci)
+        });
+      });
+      areaData.push(ptArr);
+    });
+
+    const areas = this.dataContainer.selectAll('g.area').data(areaData);
+    const areasEnter = areas.enter().append('g')
+      .attr('class', (d, i) => 'area area-' + i)
+      .append('path');
+
+    // Start with zero difference from original y.
+    const flatAreaCoords = area()
+      .x( (d: any) => d.x)
+      .y0( (d: any) => d.y)
+      .y1( (d: any) => d.y);
+
+    const flatArea = (el) => {
+      return el
+        .attr('class', 'area-path')
+        .attr('d', flatAreaCoords)
+        .attr('stroke-opacity', 0)
+        .attr('fill-opacity', 0);
+    }
+
+    // Endpoint to transition to CI visibility.
+    const valueAreaCoords = area()
+      .x( (d: any) => d.x)
+      .y0( (d: any) => d.y0)
+      .y1( (d: any) => d.y1);
+
+    const valueArea = (el) => {
+      return el
+        .attr('d', valueAreaCoords)
+        .attr('stroke-opacity', 1)
+        .attr('fill-opacity', 0.5)
+        .attr('transform', 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)')
+        .attr('vector-effect', 'non-scaling-stroke');
+    }
+
+    // Transition from flat line to full ci "padding" on enter
+    areasEnter
+      .call(flatArea)
+      .transition()
+      .delay(this.settings.transition.duration)
+      .ease(this.settings.transition.ease)
+      .duration(this.settings.transition.duration)
+      .call(valueArea);
+
+    areas.transition()
+      .select('path')
+      .ease(this.settings.transition.ease)
+      .duration(this.settings.transition.duration)
+      .call(valueArea);
+
+    // transition out lines no longer present
+    areas.exit()
+      .attr('class', (d, i) => 'area area-exit area-' + i)
+      .transition()
+      .ease(this.settings.transition.ease)
+      .duration(this.settings.transition.duration)
+      .call(flatArea)
+      .remove();
+
     return this;
   }
 
@@ -231,7 +415,7 @@ export class GraphService {
       .lineAttrs({
         class: (d, i) => 'line line-' + i,
         transform: 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)',
-        'vector-effect': 'non-scaling-stroke'
+        vectorEffect: 'non-scaling-stroke'
       })
       .gapStyles({ 'stroke-opacity': 0 })
       .pointAttrs({ r: 5 });
@@ -241,7 +425,8 @@ export class GraphService {
       .transition()
       .ease(this.settings.transition.ease)
       .duration(this.settings.transition.duration)
-      .call(valueLine);
+      .call(valueLine)
+      .on('end', this.renderLineCI());
 
     lines.transition()
       .ease(this.settings.transition.ease)
