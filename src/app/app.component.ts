@@ -36,9 +36,9 @@ export class AppComponent implements OnInit {
 
   getBarGraphData() {
     return [
-      { id: 'us-avg-bar', data: [ { x: 'New York', y: 1200, ci: 200 } ] },
-      { id: 'new-york-bar', data: [ { x: 'New Yorks', y: 1600, ci: 150 } ] },
-      { id: 'else-bar', data: [ { x: 'Somewhere Else', y: 600, ci: 320 } ] }
+      { id: 'us-avg-bar', data: [ { x: 'New York', y: 1200, ci: 20 } ] },
+      { id: 'new-york-bar', data: [ { x: 'New Yorks', y: 1600, ci: 50 } ] },
+      { id: 'else-bar', data: [ { x: 'Somewhere Else', y: 600, ci: 120 } ] }
     ];
   }
 

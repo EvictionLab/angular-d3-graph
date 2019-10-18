@@ -172,32 +172,16 @@ export class GraphService {
    */
   renderBarCI() {
     console.log('renderBarCI()');
-
+    // If feature is disabled, exit.
+    if (!this.settings.ci.display) { return; }
+    // Gather & bind data.
     const barData = (this.type === 'bar' ? this.data : []);
-    const barCIs = this.dataContainer.selectAll('.bar-ci').data(barData, (d) => d.id);
-    const self = this;
+    console.log('barData');
+    console.log(barData);
 
-    const barCIData = [];
-    barData.forEach((el, i) => {
-      // console.log('lineData.forEach');
-      var _data = el.data;
-      let ptArr = [];
-      _data.forEach((item, ind) => {
-        let _ci = item.ci;
-        // If it's the first, ci == 0,
-        // if it's the last, ci == 0
-        if (ind === 0 || ind === _data.length - 1) {
-          _ci = 0;
-        }
-        ptArr.push({
-          x: this.scales.x(item.x),
-          y: this.scales.y(item.y),
-          y0: this.scales.y(item.y - _ci),
-          y1: this.scales.y(item.y + _ci)
-        });
-      });
-      barCIData.push(ptArr);
-    });
+    const barCIs = this.dataContainer.selectAll('.bar-ci').data(barData);
+    const barCIsEnter = barCIs.enter().append('rect');
+    const self = this;
 
     // transition out bars no longer present
     barCIs.exit()
@@ -206,41 +190,72 @@ export class GraphService {
       .ease(this.settings.transition.ease)
       .duration(this.settings.transition.duration)
       .attr('height', 0)
-      .attr('y', this.height)
+      .attr('y', (d) => {
+        return Math.max(0, this.scales.y(d.data[0][this.settings.props.y]))
+      })
       .remove();
 
     const update = () => {
-      barCIs.transition().ease(this.settings.transition.ease)
+      console.log('update');
+      barCIsEnter
+        .transition()
+        .ease(this.settings.transition.ease)
         .duration(this.settings.transition.duration)
-        .attr('class', (d, i) => 'bar bar-' + i)
-        .attr('height', (d) => Math.max(
-          0, this.height - this.scales.y(this.getBarDisplayVal(d.data[0][this.settings.props.y], this.scales.y))
-        ))
-        .attr('y', (d) => this.scales.y(this.getBarDisplayVal(d.data[0][this.settings.props.y], this.scales.y)))
+        .attr('class', (d, i) => 'bar-ci bar-ci-' + i)
+        .attr('height', (d) => {
+          return this.height - Math.max(0, this.scales.y(d.data[0][this.settings.props.ci]))
+        })
+        .attr('y', (d) => {
+          return Math.max(0, this.scales.y(d.data[0][this.settings.props.y] +  d.data[0][this.settings.props.ci]))
+        })
         .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
         .attr('width', this.scales.x.bandwidth());
     };
 
+    const attachUpdate = () => {
+      console.log('attachUpdate()');
+      barCIs.transition().call(update);
+    }
+
     if (this.type === 'bar') {
       // update bars with new data
-      update();
+      // update();
 
       // add bars for new data
-      barCIs.enter().append('rect')
-        .attr('class', (d, i) => 'bar bar-enter bar-' + i)
+      // barCIs.enter().append('rect')
+      barCIsEnter
+        .attr('class', (d, i) => 'bar-ci bar-ci-enter bar-ci-' + i)
         .on('mouseover', function(d) { self.barHover.emit({...d, ...self.getBarRect(this), el: this }); })
         .on('mouseout',  function(d) { self.barHover.emit(null); })
         .on('click',  function(d) { self.barClick.emit({...d, ...self.getBarRect(this), el: this }); })
         .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
-        .attr('y', this.height)
+        .attr('y', (d) => {
+          return Math.max(0, this.scales.y(d.data[0][this.settings.props.y]))
+        })
         .attr('width', this.scales.x.bandwidth())
         .attr('height', 0)
-        .transition().ease(this.settings.transition.ease)
-          .duration(this.settings.transition.duration)
-          .attr('height', (d) => Math.max(0, this.height - this.scales.y(d.data[0][this.settings.props.y])))
-          .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]));
+        .transition()
+        .delay(this.settings.transition.duration)
+        .ease(this.settings.transition.ease)
+        .duration(this.settings.transition.duration)
+        .attr('y', (d) => {
+          return Math.max(0, this.scales.y(d.data[0][this.settings.props.y] +  d.data[0][this.settings.props.ci]))
+        })
+        .attr('height', (d) => {
+          return this.height - Math.max(0, this.scales.y(d.data[0][this.settings.props.ci]))
+        })
+
+
+        // .on('end', () => { setTimeout(
+        //   () => {
+        //     barCIs.transition().call(update());
+        // }, this.settings.transition.duration*2)});
+
+
+        // .call(update());
+
+        // update();
     }
-    // return this;
   }
 
   /**

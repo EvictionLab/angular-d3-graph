@@ -73,6 +73,15 @@
 .app-graph .bar-2 { fill: url(#g2); }
 .app-graph .bar-3 { fill: url(#g3); }
 
+.app-graph .bar-ci-0 { fill: url(#g0); }
+.app-graph .bar-ci-1 { fill: url(#g1); }
+.app-graph .bar-ci-2 { fill: url(#g2); }
+.app-graph .bar-ci-3 { fill: url(#g3); }
+
+.app-graph .bar-ci {
+  fill-opacity: 0.5;
+}
+
 
 
 
