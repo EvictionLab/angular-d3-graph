@@ -99,7 +99,6 @@ export class GraphService {
       this.renderLines();
     } else {
       this.renderBars();
-      // this.renderBarAreas();
     }
   }
 
@@ -171,14 +170,11 @@ export class GraphService {
    * @return Boolean
    */
   renderBarCI() {
-    console.log('renderBarCI()');
+    // console.log('renderBarCI()');
     // If feature is disabled, exit.
     if (!this.settings.ci.display) { return; }
     // Gather & bind data.
     const barData = (this.type === 'bar' ? this.data : []);
-    console.log('barData');
-    console.log(barData);
-
     const barCIs = this.dataContainer.selectAll('.bar-ci').data(barData);
     const barCIsEnter = barCIs.enter().append('rect');
     const self = this;
@@ -196,33 +192,27 @@ export class GraphService {
       .remove();
 
     const update = () => {
-      console.log('update');
-      barCIsEnter
+      // console.log('update');
+      barCIs
         .transition()
         .ease(this.settings.transition.ease)
         .duration(this.settings.transition.duration)
         .attr('class', (d, i) => 'bar-ci bar-ci-' + i)
+        .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
+        .attr('width', this.scales.x.bandwidth())
         .attr('height', (d) => {
           return this.height - Math.max(0, this.scales.y(d.data[0][this.settings.props.ci]))
         })
         .attr('y', (d) => {
           return Math.max(0, this.scales.y(d.data[0][this.settings.props.y] +  d.data[0][this.settings.props.ci]))
-        })
-        .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
-        .attr('width', this.scales.x.bandwidth());
+        });
     };
-
-    const attachUpdate = () => {
-      console.log('attachUpdate()');
-      barCIs.transition().call(update);
-    }
 
     if (this.type === 'bar') {
       // update bars with new data
-      // update();
+      update();
 
       // add bars for new data
-      // barCIs.enter().append('rect')
       barCIsEnter
         .attr('class', (d, i) => 'bar-ci bar-ci-enter bar-ci-' + i)
         .on('mouseover', function(d) { self.barHover.emit({...d, ...self.getBarRect(this), el: this }); })
@@ -243,18 +233,7 @@ export class GraphService {
         })
         .attr('height', (d) => {
           return this.height - Math.max(0, this.scales.y(d.data[0][this.settings.props.ci]))
-        })
-
-
-        // .on('end', () => { setTimeout(
-        //   () => {
-        //     barCIs.transition().call(update());
-        // }, this.settings.transition.duration*2)});
-
-
-        // .call(update());
-
-        // update();
+        });
     }
   }
 
@@ -285,7 +264,8 @@ export class GraphService {
         ))
         .attr('y', (d) => this.scales.y(this.getBarDisplayVal(d.data[0][this.settings.props.y], this.scales.y)))
         .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
-        .attr('width', this.scales.x.bandwidth());
+        .attr('width', this.scales.x.bandwidth())
+        .on('end', this.renderBarCI());
     };
 
     if (this.type === 'bar') {
@@ -305,8 +285,7 @@ export class GraphService {
         .transition().ease(this.settings.transition.ease)
           .duration(this.settings.transition.duration)
           .attr('height', (d) => Math.max(0, this.height - this.scales.y(d.data[0][this.settings.props.y])))
-          .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]))
-          .on('end', this.renderBarCI());
+          .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]));
     }
     return this;
   }
