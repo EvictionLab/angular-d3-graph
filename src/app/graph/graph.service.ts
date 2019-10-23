@@ -126,7 +126,7 @@ export class GraphService {
    * @param type type of graph to switch to
    */
   setType(type: string) {
-    console.log('setType');
+    // console.log('setType');
     if (this.type !== type) {
       const oldType = this.type;
       this.type = type;
@@ -170,9 +170,10 @@ export class GraphService {
    * @return Boolean
    */
   renderBarCI() {
-    // console.log('renderBarCI()');
+    console.log('renderBarCI()');
     // If feature is disabled, exit.
     if (!this.settings.ci.display) { return; }
+    console.log('renderBarCI() after return');
     // Gather & bind data.
     const barData = (this.type === 'bar' ? this.data : []);
     const barCIs = this.dataContainer.selectAll('.bar-ci').data(barData);
@@ -182,12 +183,17 @@ export class GraphService {
     // transition out bars no longer present
     barCIs.exit()
       .attr('class', (d, i) => 'bar-ci bar-ci-exit bar-ci-' + i)
+      // .call(() => {console.log('transitioning out exit bars')})
       .transition()
       .ease(this.settings.transition.ease)
       .duration(this.settings.transition.duration)
       .attr('height', 0)
       .attr('y', (d) => {
-        return Math.max(0, this.scales.y(d.data[0][this.settings.props.y]))
+        // console.log(Math.max(0, this.scales.y(d.data[0][this.settings.props.y])))
+        // console.log(d.data[0][this.settings.props.y]);
+        // return Math.max(0, this.scales.y(d.data[0][this.settings.props.y]))
+        // return this.scales.y(d.data[0][this.settings.props.y])
+        return this.height - Math.max(0, this.scales.y(d.data[0][this.settings.props.ci]))
       })
       .remove();
 
@@ -294,9 +300,17 @@ export class GraphService {
    * Renders areas to convey confidence interval for lines
    * @return Boolean
    */
-  renderLineCI(transform = this.transform) {
-    if (!this.settings.ci.display) { return; }
-    // console.log('renderLineCI()');
+  renderLineCI() {
+    console.log('renderLineCI()');
+    console.log('this');
+    console.log(this);
+    
+    if (this.settings && this.settings.ci && this.settings.ci) {
+      if (!this.settings.ci.display) { return; }
+    } else {
+       return;
+    }
+    const transform = this.transform;
     const lineData = (this.type === 'line' ? this.data : []);
     const extent = this.getExtents();
     // Construct area data before binding data (because we need
@@ -322,6 +336,9 @@ export class GraphService {
       });
       areaData.push(ptArr);
     });
+    
+    console.log('areaData');
+    console.log(areaData);
 
     const areas = this.dataContainer.selectAll('g.area').data(areaData);
     const areasEnter = areas.enter().append('g')
@@ -381,13 +398,16 @@ export class GraphService {
       .call(flatArea)
       .remove();
 
-    return this;
+    // return this;
   }
 
   /**
    * Renders lines for any data in the data set.
    */
   renderLines(transform = this.transform) {
+    console.log('renderLines()');
+    console.log(this);
+    // const _this = this;
     const lineData = (this.type === 'line' ? this.data : []);
     const extent = this.getExtents();
     const lines = this.dataContainer.selectAll('g.line').data(lineData, (d) => d.id);
