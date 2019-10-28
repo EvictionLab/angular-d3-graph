@@ -50,6 +50,7 @@ export class GraphService {
   private bisectX = bisector((d) => d[this.settings.props.x]).left;
   private title;
   private desc;
+  private legacyAreaData;
 
   /**
    * initializes the SVG element for the graph
@@ -98,6 +99,7 @@ export class GraphService {
       .renderAxis(this.settings.axis.y, this.transform, args.length > 0);
     if (this.type === 'line') {
       this.renderLines();
+      // this.hideCIAreas();
     } else {
       this.renderBars();
     }
@@ -133,6 +135,7 @@ export class GraphService {
       this.type = type;
       if (oldType === 'line') {
         this.renderLines();
+        // this.hideCIAreas();
       }
       if (oldType === 'bar') { this.renderBars(); }
     }
@@ -294,33 +297,19 @@ export class GraphService {
     return this;
   }
 
-  
-  hideLineCI() {
-    console.log('hideLineCI()');
-  }
-  
-  showLineCI() {
-    console.log('showLineCI()');
-  }
-  
-  
   /**
    * Renders areas to convey confidence interval for lines
    * @return Boolean
    */
-  renderLineCI(mode) {
+  renderLineCI() {
     console.log('renderLineCI()');
     console.log('this');
     console.log(this);
-    
-    // if (this.settings && this.settings.ci && this.settings.ci) {
-    //   if (!this.settings.ci.display) { return; }
-    // } else {
-    //    return;
-    // }
+
     const transform = this.transform;
     const lineData = (this.type === 'line' ? this.data : []);
     const extent = this.getExtents();
+
     // Construct area data before binding data (because we need
     // a bit different info than the lines themselves).
     const areaData = [];
@@ -332,19 +321,21 @@ export class GraphService {
       // Additional index to track lines with missing dates.
       let incr = 0;
       _data.forEach((item, ind) => {
-        let _ci = item.ci;
+        let _ciH = item.ciH;
+        let _ciL = item.ciL;
         // If it's the first, ci == 0,
         // if it's the last, ci == 0
         if (ind === 0 || ind === _data.length - 1 || incr === 0) {
-          _ci = 0;
+          _ciH = 0;
+          _ciL = 0;
         }
         let _areaObj = {};
         if (item.y) {
           _areaObj = {
             x: this.scales.x(item.x),
             y: this.scales.y(item.y),
-            y0: this.scales.y(item.y - _ci),
-            y1: this.scales.y(item.y + _ci)
+            y1: this.scales.y(item.y + _ciH),
+            y0: this.scales.y(item.y - _ciL)
           };
           ptArr.push(_areaObj);
           incr++;
@@ -354,13 +345,6 @@ export class GraphService {
     });
     console.log('areaData');
     console.log(areaData);
-// .selectAll('g.line').data(lineData, (d) => d.id);
-    const areas = this.dataContainer.selectAll('g.area').data(areaData);
-    console.log(areas);
-
-    const areasEnter = areas.enter().append('g')
-      .attr('class', (d, i) => 'area area-' + i)
-      .append('path');
 
     // where y = bottom
     const flatAreaCoords = area()
@@ -381,6 +365,13 @@ export class GraphService {
         .attr('fill-opacity', 0);
     }
 
+    const lineArea = (el) => {
+      return el
+        .attr('d', flatAreaCoordsLine)
+        .attr('stroke-opacity', 0)
+        .attr('fill-opacity', 0);
+    }
+
     // Endpoint to transition to CI visibility.
     const valueAreaCoords = area()
       .x( (d: any) => {return d.x})
@@ -395,29 +386,51 @@ export class GraphService {
         .attr('transform', 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)')
         .attr('vector-effect', 'non-scaling-stroke');
     }
-    
-    // First, hide the areas so they're not visible during transition.
+
+    // if (this.legacyAreas) {
+    //   const legacyAreas = this.dataContainer.selectAll('g.area').data(this.legacyAreasData);
+    //   console.log('legacyAreas');
+    //   console.log(legacyAreas);
+    //   // Shrink the areas.
+    //   legacyAreas
+    //     .call(() => console.log('areas.transition() linearea'))
+    //     .select('path')
+    //     .transition()
+    //     .ease(this.settings.transition.ease)
+    //     .duration(this.settings.transition.duration/2)
+    //     .call(lineArea);
+    // }
+
+    // Establish areas and enter() collection
+    const areas = this.dataContainer.selectAll('g.area').data(areaData);
+    // console.log('areas');
+    // console.log(areas);
+    const areasEnter = areas
+      .enter()
+      .append('g')
+      .attr('class', (d, i) => 'area area-' + i)
+      .append('path');
+
+    // Shrink the areas.
     areas
-      .transition()
-      .call(() => console.log('areas.transition()'))
+      .call(() => console.log('areas.transition() linearea'))
       .select('path')
-      .call((el, i) => { console.log(el) })
+      .transition()
       .ease(this.settings.transition.ease)
-      .duration(this.settings.transition.duration)
-      .call(valueArea);
-    
+      .duration(this.settings.transition.duration/2)
+      .call(lineArea)
+      
     // transition out lines no longer present
     areas
       .exit()
-      // .select('g')
       .call(() => console.log('areas.exit()'))
       .call(() => console.log(areas.exit()))
       .attr('class', (d, i) => 'area area-exit area-' + i)
+      .select('path')
       .transition()
       .ease(this.settings.transition.ease)
-      .duration(this.settings.transition.duration)
-      .select('path')
-      .call(flatArea)
+      .duration(this.settings.transition.duration/2)
+      .call(lineArea)
       .select(function() { return this.parentNode; })
       .remove();
 
@@ -427,32 +440,92 @@ export class GraphService {
         this.settings.ci &&
         this.settings.ci &&
         this.settings.ci.display) {
+
+        // // Shrink the areas.
+        // areas
+        //   .call(() => console.log('areas.transition() linearea'))
+        //   .select('path')
+        //   .transition()
+        //   .ease(this.settings.transition.ease)
+        //   .duration(this.settings.transition.duration/2)
+        //   .call(lineArea)
+
         areasEnter
           .call(() => console.log('areas.areasEnter()'))
-          .call(flatArea)
+          // .call(flatArea)
+          // .transition()
+          // .delay(this.settings.transition.duration)
+          // .ease(this.settings.transition.ease)
+          // .duration(this.settings.transition.duration)
           .transition()
+          .ease(this.settings.transition.ease)
+          .duration(this.settings.transition.duration)
           .delay(this.settings.transition.duration)
+          .call(flatAreaCoordsLine)
+          .call((el, i) => { console.log(el) })
+          .transition()
           .ease(this.settings.transition.ease)
           .duration(this.settings.transition.duration)
           .call(valueArea);
 
         areas
-          .transition()
+          // .transition()
+          // .delay(this.settings.transition.duration)
           .call(() => console.log('areas.transition()'))
           .select('path')
-          .call((el, i) => { console.log(el) })
+          .transition()
+          .delay(this.settings.transition.duration)
           .ease(this.settings.transition.ease)
           .duration(this.settings.transition.duration)
           .call(valueArea);
       }
     }
+    this.legacyAreaData = areaData;
   }
+  
+  // hideCIAreas() {
+  //   console.log('hideCIAreas()');
+  //   console.log(this.legacyAreaData);
+  //   // Establish areas and enter() collection
+  //   if (this.legacyAreaData) {
+  //     const areas = this.dataContainer.selectAll('g.area').data(this.legacyAreaData);
+  //     // console.log('areas');
+  //     // console.log(areas);
+  // 
+  //     // where y0 and y1 = y
+  //     const flatAreaCoordsLine = area()
+  //       .x( (d: any) => d.x)
+  //       .y0( (d: any) => d.y)
+  //       .y1( (d: any) => d.y);
+  // 
+  //     const lineArea = (el) => {
+  //       return el
+  //         .attr('d', flatAreaCoordsLine)
+  //         .attr('stroke-opacity', 0)
+  //         .attr('fill-opacity', 0);
+  //     }
+  // 
+  //     // Shrink the areas.
+  //     areas
+  //       // .call(() => console.log('areas.transition() linearea'))
+  //       .select('path')
+  //       .transition()
+  //       .ease(this.settings.transition.ease)
+  //       .duration(this.settings.transition.duration/2)
+  //       .call(lineArea)
+  //       .select(function() { return this.parentNode; })
+  //       .remove();
+  //     }
+  // 
+  //     this.renderLines();
+  // }
 
   /**
    * Renders lines for any data in the data set.
    */
   renderLines(transform = this.transform) {
-    // console.log('renderLines()');
+    console.log('renderLines()');
+    this.renderLineCI();
     const lineData = (this.type === 'line' ? this.data : []);
     const extent = this.getExtents();
     const lines = this.dataContainer.selectAll('g.line').data(lineData, (d) => d.id);
@@ -479,29 +552,31 @@ export class GraphService {
       .gapStyles({ 'stroke-opacity': 0 })
       .pointAttrs({ r: 5 });
 
+    const delay = (this.type === 'line') ? this.settings.transition.duration : 0;
+
     // Transition from flat line on enter
     linesEnter.call(flatLine)
       .transition()
+      .delay(this.settings.transition.duration)
       .ease(this.settings.transition.ease)
-      .duration(this.settings.transition.duration)
-      .call(valueLine)
-      // .on('end', this.renderLineCI('enter'));
+      .duration(delay)
+      .call(valueLine);
 
     lines.transition()
       .ease(this.settings.transition.ease)
-      .duration(this.settings.transition.duration)
-      .call(valueLine)
-      // .on('end', this.renderLineCI('transition'));;
+      .delay(this.settings.transition.duration)
+      .duration(delay)
+      .call(valueLine);
 
     // transition out lines no longer present
     lines.exit()
       .attr('class', (d, i) => 'line line-exit line-' + i)
       .transition()
+      .delay(delay)
       .ease(this.settings.transition.ease)
       .duration(this.settings.transition.duration)
       .call(flatLine)
-      .remove()
-      // .on('end', this.renderLineCI('exit'));;
+      .remove();
 
     return this;
   }
