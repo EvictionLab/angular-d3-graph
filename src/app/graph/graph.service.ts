@@ -8,6 +8,8 @@ import { extent, max, bisector, scan } from 'd3-array';
 import { format } from 'd3-format';
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { lineChunked } from 'd3-line-chunked';
+import { area } from 'd3-shape';
+import { interpolatePath } from 'd3-interpolate-path';
 import * as _merge from 'lodash.merge';
 
 @Injectable()
@@ -17,7 +19,7 @@ export class GraphService {
   data: any = [];
   settings = {
     id: 'd3graph',
-    props: { x: 'x', y: 'y' },
+    props: { x: 'x', y: 'y', ci: 'ci', ciH: 'ciH', ciL: 'ciL' },
     margin: { left: 48, right: 10, top: 10, bottom: 48 },
     axis: {
       x: { position: 'bottom', label: 'x', invert: false, extent: [], minVal: null, maxVal: null },
@@ -25,6 +27,9 @@ export class GraphService {
     },
     transition: { ease: easePoly, duration: 1000 },
     zoom: { enabled: false, min: 1, max: 10 },
+    ci: {
+      display: true
+    },
     debug: false
   };
   barHover = new EventEmitter();
@@ -45,6 +50,7 @@ export class GraphService {
   private bisectX = bisector((d) => d[this.settings.props.x]).left;
   private title;
   private desc;
+  private legacyAreaData;
 
   /**
    * initializes the SVG element for the graph
@@ -91,7 +97,11 @@ export class GraphService {
     this.updateTitleDesc();
     this.renderAxis(this.settings.axis.x, this.transform, args.length > 0)
       .renderAxis(this.settings.axis.y, this.transform, args.length > 0);
-    this.type === 'line' ? this.renderLines() : this.renderBars();
+    if (this.type === 'line') {
+      this.renderLines();
+    } else {
+      this.renderBars();
+    }
   }
 
   /**
@@ -118,10 +128,13 @@ export class GraphService {
    * @param type type of graph to switch to
    */
   setType(type: string) {
+    // console.log('setType');
     if (this.type !== type) {
       const oldType = this.type;
       this.type = type;
-      if (oldType === 'line') { this.renderLines(); }
+      if (oldType === 'line') {
+        this.renderLines();
+      }
       if (oldType === 'bar') { this.renderBars(); }
     }
   }
@@ -155,6 +168,81 @@ export class GraphService {
   }
 
   /**
+   * Renders areas to convey confidence interval for bars
+   * @return Boolean
+   */
+  renderBarCI() {
+    // console.log('renderBarCI()');
+    // Gather & bind data.
+    const barData = (this.type === 'bar' ? this.data : []);
+    // Remove all existing bars
+    const barCIs = this.dataContainer.selectAll('.bar-ci').data(barData);
+    const barCIsEnter = barCIs.enter().append('rect');
+    const self = this;
+    const displayCI = this.settings && this.settings.ci && this.settings.ci &&   this.settings.ci.display;
+
+    // transition out bars no longer present
+    barCIs.exit()
+      .attr('class', (d, i) => 'bar-ci bar-ci-exit bar-ci-' + i)
+      .transition()
+      .ease(this.settings.transition.ease)
+      .duration(this.settings.transition.duration)
+      .attr('height', 0)
+      .attr('y', (d) => {
+        return this.height;
+      })
+      .remove();
+
+    const update = () => {
+      // console.log('update');
+      barCIs
+        .transition()
+        .ease(this.settings.transition.ease)
+        .duration(this.settings.transition.duration)
+        .attr('class', (d, i) => 'bar-ci bar-ci-' + i)
+        .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
+        .attr('width', this.scales.x.bandwidth())
+        .attr('height', (d) => {
+          return displayCI ?
+          (this.height - Math.max(0, this.scales.y(d.data[0][this.settings.props.ciH] - d.data[0][this.settings.props.ciL]))) : 0;
+        })
+        .attr('y', (d) => {
+          return displayCI ?
+          (Math.max(0, this.scales.y(d.data[0][this.settings.props.ciH]))) : this.scales.y(d.data[0][this.settings.props.y]);
+        });
+    };
+
+    if (this.type === 'bar') {
+      // update bars with new data
+      update();
+
+      // add bars for new data
+      barCIsEnter
+        .attr('class', (d, i) => 'bar-ci bar-ci-enter bar-ci-' + i)
+        .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
+        .attr('y', (d) => {
+          return this.height;
+          // return Math.max(0, this.scales.y(d.data[0][this.settings.props.ciL]));
+        })
+        .attr('width', this.scales.x.bandwidth())
+        .attr('height', 0)
+        .transition()
+        .delay(this.settings.transition.duration * 4)
+        .ease(this.settings.transition.ease)
+        .duration(this.settings.transition.duration)
+        .attr('height', (d) => {
+          return displayCI ?
+          (this.height - Math.max(0, this.scales.y(d.data[0][this.settings.props.ciH] - d.data[0][this.settings.props.ciL]))) : 0;
+        })
+        .attr('y', (d) => {
+          // return Math.max(0, this.scales.y(d.data[0][this.settings.props.ciH]));
+          return displayCI ?
+          (Math.max(0, this.scales.y(d.data[0][this.settings.props.ciH]))) : this.scales.y(d.data[0][this.settings.props.y]);
+        });
+    }
+  }
+
+  /**
    * Render bars for the data
    */
   renderBars() {
@@ -171,8 +259,10 @@ export class GraphService {
       .attr('height', 0)
       .attr('y', this.height)
       .remove();
+      // .on('end', this.renderBarCI());
 
     const update = () => {
+      // console.log('bars update()');
       bars.transition().ease(this.settings.transition.ease)
         .duration(this.settings.transition.duration)
         .attr('class', (d, i) => 'bar bar-' + i)
@@ -182,6 +272,7 @@ export class GraphService {
         .attr('y', (d) => this.scales.y(this.getBarDisplayVal(d.data[0][this.settings.props.y], this.scales.y)))
         .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
         .attr('width', this.scales.x.bandwidth());
+        // .on('end', this.renderBarCI());
     };
 
     if (this.type === 'bar') {
@@ -202,14 +293,189 @@ export class GraphService {
           .duration(this.settings.transition.duration)
           .attr('height', (d) => Math.max(0, this.height - this.scales.y(d.data[0][this.settings.props.y])))
           .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]));
+          // .on('end', this.renderBarCI());
     }
+    this.renderBarCI();
     return this;
+  }
+
+  /**
+   * Renders areas to convey confidence interval for lines
+   * @return Boolean
+   */
+  renderLineCI() {
+    // console.log('renderLineCI()');
+
+    const transform = this.transform;
+    const lineData = (this.type === 'line' ? this.data : []);
+    const extent = this.getExtents();
+
+    // Construct area data before binding data (because we need
+    // a bit different info than the lines themselves).
+    const areaData = [];
+    lineData.forEach((el, i) => {
+      const _data = el.data;
+      const ptArr = [];
+      // Additional index to track lines with missing dates.
+      let incr = 0;
+      _data.forEach((item, ind) => {
+        const _ciH = item.ciH;
+        const _ciL = item.ciL;
+        // Check for stretches with missing y coords
+        let areaPrev = false;
+        let areaNext = false;
+        if (_data[ind + 1]) {
+          if ( _data[ind + 1]['y'] === undefined) {
+            areaNext = true;
+          }
+        }
+        if (_data[ind - 1]) {
+          if ( _data[ind - 1]['y'] === undefined) {
+            areaPrev = true;
+          }
+        }
+        // Build the item area coords and any closing coords
+        // before or after an undefined stretch.
+        let _areaObj = {};
+        if (item.y > -1) {
+          if (!!areaPrev) {
+            ptArr.push({
+              x: this.scales.x(item.x),
+              y: this.scales.y(item.y),
+              y1: this.scales.y(item.y),
+              y0: this.scales.y(item.y)
+            });
+          }
+          _areaObj = {
+            x: this.scales.x(item.x),
+            y: this.scales.y(item.y),
+            y1: this.scales.y(_ciH),
+            y0: this.scales.y(_ciL)
+          };
+          ptArr.push(_areaObj);
+          if (!!areaNext) {
+            ptArr.push({
+              x: this.scales.x(item.x),
+              y: this.scales.y(item.y),
+              y1: this.scales.y(item.y),
+              y0: this.scales.y(item.y)
+            });
+          }
+          incr++;
+        }
+      });
+      areaData.push(ptArr);
+    });
+    // console.log('areaData');
+    // console.log(areaData);
+
+    // where y = bottom
+    const flatAreaCoords = area()
+      .x((d: any, index: any, da: any) => 0)
+      .y0( (d: any) => this.scales.y(extent.y[0]))
+      .y1( (d: any) => this.scales.y(extent.y[0]));
+
+    // where y0 and y1 = y
+    const flatAreaCoordsLine = area()
+      .x( (d: any) => d.x)
+      .y0( (d: any) => d.y)
+      .y1( (d: any) => d.y);
+
+    const flatArea = (el) => {
+      return el
+        .attr('d', flatAreaCoords)
+        .attr('stroke-opacity', 0)
+        .attr('fill-opacity', 0);
+    };
+
+    const lineArea = (el) => {
+      return el
+        .attr('d', flatAreaCoordsLine)
+        .attr('stroke-opacity', 0)
+        .attr('fill-opacity', 0);
+    };
+
+    // Endpoint to transition to CI visibility.
+    const valueAreaCoords = area()
+      .x( (d: any) => d.x)
+      .y0( (d: any) => d.y0)
+      .y1( (d: any) => d.y1);
+
+    const valueArea = (el) => {
+      return el
+        .attr('d', valueAreaCoords)
+        .attr('stroke-opacity', 1)
+        .attr('fill-opacity', 0.2)
+        .attr('transform', 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)')
+        .attr('vector-effect', 'non-scaling-stroke');
+    };
+
+    // Establish areas and enter() collection
+    const areas = this.dataContainer.selectAll('g.area').data(areaData);
+    // console.log('areas');
+    // console.log(areas);
+    const areasEnter = areas
+      .enter()
+      .append('g')
+      .attr('class', (d, i) => 'area area-' + i)
+      .append('path');
+
+    // Shrink the areas.
+    areas
+      .select('path')
+      .transition()
+      .ease(this.settings.transition.ease)
+      .duration(this.settings.transition.duration / 2)
+      .call(lineArea);
+
+    // transition out lines no longer present
+    areas
+      .exit()
+      .attr('class', (d, i) => 'area area-exit area-' + i)
+      .select('path')
+      .transition()
+      .ease(this.settings.transition.ease)
+      .duration(this.settings.transition.duration / 2)
+      .call(lineArea)
+      .select(function() { return this.parentNode; })
+      .remove();
+
+    if (this.type === 'line') {
+      // Transition from flat line to full ci "padding" on enter
+      if (this.settings &&
+        this.settings.ci &&
+        this.settings.ci &&
+        this.settings.ci.display) {
+
+        areasEnter
+          .transition()
+          .ease(this.settings.transition.ease)
+          .duration(this.settings.transition.duration)
+          .delay(this.settings.transition.duration)
+          .call(flatAreaCoordsLine)
+          .transition()
+          .ease(this.settings.transition.ease)
+          .duration(this.settings.transition.duration)
+          .call(valueArea);
+
+        areas
+          .select('path')
+          .transition()
+          .delay(this.settings.transition.duration)
+          .ease(this.settings.transition.ease)
+          .duration(this.settings.transition.duration)
+          .call(valueArea);
+      }
+    }
+    this.legacyAreaData = areaData;
   }
 
   /**
    * Renders lines for any data in the data set.
    */
   renderLines(transform = this.transform) {
+    // console.log('renderLines()');
+    this.renderLineCI();
     const lineData = (this.type === 'line' ? this.data : []);
     const extent = this.getExtents();
     const lines = this.dataContainer.selectAll('g.line').data(lineData, (d) => d.id);
@@ -231,27 +497,33 @@ export class GraphService {
       .lineAttrs({
         class: (d, i) => 'line line-' + i,
         transform: 'translate(' + transform.x + ',0)scale(' + transform.k + ',1)',
-        'vector-effect': 'non-scaling-stroke'
+        vectorEffect: 'non-scaling-stroke',
+        'stroke-linecap': 'round'
       })
       .gapStyles({ 'stroke-opacity': 0 })
       .pointAttrs({ r: 5 });
 
+    const delay = (this.type === 'line') ? this.settings.transition.duration : 0;
+
     // Transition from flat line on enter
     linesEnter.call(flatLine)
       .transition()
+      .delay(this.settings.transition.duration)
       .ease(this.settings.transition.ease)
-      .duration(this.settings.transition.duration)
+      .duration(delay)
       .call(valueLine);
 
     lines.transition()
       .ease(this.settings.transition.ease)
-      .duration(this.settings.transition.duration)
+      .delay(this.settings.transition.duration)
+      .duration(delay)
       .call(valueLine);
 
     // transition out lines no longer present
     lines.exit()
       .attr('class', (d, i) => 'line line-exit line-' + i)
       .transition()
+      .delay(delay)
       .ease(this.settings.transition.ease)
       .duration(this.settings.transition.duration)
       .call(flatLine)
@@ -635,9 +907,24 @@ export class GraphService {
     }
   }
 
+  /**
+   * Returns largest of max and min CI values to add to padding
+   * @return Number
+   */
+  private getMaxCI() {
+    // console.log('getMaxCI()');
+    const cis = [];
+    (this.data).forEach((d) => {
+      cis.push((d.data[0].ciH > d.data[0].ciL) ? d.data[0].ciH : d.data[0].ciL);
+    });
+    return Math.max(...cis);
+  }
+
   /** Pads the min / max of an extent array by the provided amount */
   private padExtent(extent: Array<number>, amount = 0.1, options: any = {}): Array<number> {
-    const padding = (extent[1] - extent[0]) * amount;
+    // console.log('padExtent()');
+    // const maxCI = this.getMaxCI();
+    const padding = ((extent[1] - extent[0]) * amount);
     const min = options.bottom ? extent[0] - padding : extent[0];
     const max = options.top ? extent[1] + padding : extent[1];
     return [min, max];

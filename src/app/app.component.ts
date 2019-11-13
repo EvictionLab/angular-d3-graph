@@ -7,7 +7,7 @@ import { Component, OnInit } from '@angular/core';
 })
 export class AppComponent implements OnInit {
   title = 'app';
-  data = this.getLineGraphData();
+  data = this.getBarGraphData();
   toggle = true;
   x1;
   x2;
@@ -17,7 +17,10 @@ export class AppComponent implements OnInit {
     margin: {left: 120},
     axis: {
       x: { 'label': 'Year', tickSize: '-100%' },
-      y: { 'label': 'Evictions', tickSize: '-100%', ticks: 5, minVal: -150, maxVal: -50 }
+      y: { 'label': 'Evictions', tickSize: '-100%', ticks: 5, minVal: -1650, maxVal: 1650 }
+    },
+    ci: {
+      display: true
     }
   };
 
@@ -33,17 +36,18 @@ export class AppComponent implements OnInit {
 
   getBarGraphData() {
     return [
-      { id: 'us-avg-bar', data: [ { x: 'New York', y: 1200 } ] },
-      { id: 'new-york-bar', data: [ { x: 'New Yorks', y: 1600 } ] },
-      { id: 'else-bar', data: [ { x: 'Somewhere Else', y: 600 } ] }
+      { id: 'us-avg-bar', data: [ { x: 'New York', y: 1200, ci: 20 } ] },
+      { id: 'new-york-bar', data: [ { x: 'New Yorks', y: 1600, ci: 50 } ] },
+      { id: 'else-bar', data: [ { x: 'Somewhere Else', y: 600, ci: 120 } ] }
     ];
   }
 
   createDataSet() {
     const d = [];
     const base = Math.random() * 100;
-    for (let i = 0; i < 50; i++) {
-      d.push({ x: i, y: base + (Math.random() * 1000) - 500 });
+    const cir = Math.random() * 100;
+    for (let i = 0; i < 10; i++) {
+      d.push({ x: i, y: base + (Math.random() * 1000) - 500, ci: cir });
     }
     return d;
   }

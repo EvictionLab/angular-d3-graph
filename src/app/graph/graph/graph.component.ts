@@ -1,4 +1,14 @@
-import { Component, ElementRef, EventEmitter, ViewChild, HostListener, ViewEncapsulation, Input, Output, OnChanges, OnInit } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  ViewChild,
+  HostListener,
+  ViewEncapsulation,
+  Input,
+  Output,
+  OnChanges,
+  OnInit } from '@angular/core';
 import * as _isEqual from 'lodash.isequal';
 
 import { GraphService } from '../graph.service';
