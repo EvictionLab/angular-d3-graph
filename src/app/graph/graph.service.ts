@@ -703,6 +703,7 @@ export class GraphService {
 
   /** Creates the skeleton DOM structure of the SVG */
   private createSvg() {
+    // console.log('createSvg()');
     this.svg = this.d3el.append('svg');
     this.title = this.svg.append('title');
     this.desc = this.svg.append('desc');
@@ -714,9 +715,24 @@ export class GraphService {
     // gradients
     for (let i = 0; i < 4; i++) {
       const g = this.defs.append('linearGradient').attr('id', 'g' + i)
-        .attr('x1', 0).attr('x2', 0).attr('y1', 0).attr('y2', 1);
+        .attr('x1', 0).attr('x2', '100%').attr('y1', 0).attr('y2', '100%');
       g.append('stop').attr('offset', '0%').attr('class', 'g' + i + '-start');
       g.append('stop').attr('offset', '100%').attr('class', 'g' + i + '-end');
+      const pattern = this.defs.append('pattern')
+        .attr('id', 'pattern' + i)
+        .attr('patternUnits', 'userSpaceOnUse')
+        .attr('shapeRendering', 'crispEdges')
+        .attr('width', '12px')
+        .attr('height', '12px');
+      pattern.append('rect')
+        .attr('x', '0')
+        .attr('y', '0')
+        .attr('width', '12px')
+        .attr('height', '12px');
+      pattern.append('path')
+        .attr('class', 'path' + i)
+        .attr('d', 'M-3,3 l6,-6M0,12 l12,-12M9,15 l6,-6')
+        .style('stroke-width', '4px');
     }
     // clip area
     this.clip = this.defs
