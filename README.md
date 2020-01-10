@@ -1,3 +1,5 @@
+> This repository has been archived, the base D3 graph is now included in the [eviction-maps](https://github.com/EvictionLab/eviction-maps) repository
+
 # Angular D3 Graph
 
 Component for rendering a line graph or bar graph.
