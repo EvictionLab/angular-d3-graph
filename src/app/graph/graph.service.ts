@@ -193,6 +193,14 @@ export class GraphService {
       })
       .remove();
 
+    const getY = (d) => {
+
+    }
+
+    const getHeight = (d) => {
+
+    }
+
     const update = () => {
       // console.log('update');
       barCIs
@@ -203,11 +211,11 @@ export class GraphService {
         .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
         .attr('width', this.scales.x.bandwidth())
         .attr('height', (d) => {
-          return displayCI ?
+          return (displayCI && d.data[0][this.settings.props.y] >= 0.1) ?
           (this.height - Math.max(0, this.scales.y(d.data[0][this.settings.props.ciH] - d.data[0][this.settings.props.ciL]))) : 0;
         })
         .attr('y', (d) => {
-          return displayCI ?
+          return (displayCI && d.data[0][this.settings.props.y] >= 0.1) ?
           (Math.max(0, this.scales.y(d.data[0][this.settings.props.ciH]))) : this.scales.y(d.data[0][this.settings.props.y]);
         });
     };
@@ -231,12 +239,12 @@ export class GraphService {
         .ease(this.settings.transition.ease)
         .duration(this.settings.transition.duration)
         .attr('height', (d) => {
-          return displayCI ?
+          return (displayCI && d.data[0][this.settings.props.y] >= 0.1) ?
           (this.height - Math.max(0, this.scales.y(d.data[0][this.settings.props.ciH] - d.data[0][this.settings.props.ciL]))) : 0;
         })
         .attr('y', (d) => {
           // return Math.max(0, this.scales.y(d.data[0][this.settings.props.ciH]));
-          return displayCI ?
+          return (displayCI && d.data[0][this.settings.props.y] >= 0.1) ?
           (Math.max(0, this.scales.y(d.data[0][this.settings.props.ciH]))) : this.scales.y(d.data[0][this.settings.props.y]);
         });
     }
@@ -259,7 +267,6 @@ export class GraphService {
       .attr('height', 0)
       .attr('y', this.height)
       .remove();
-      // .on('end', this.renderBarCI());
 
     const update = () => {
       // console.log('bars update()');
@@ -272,7 +279,6 @@ export class GraphService {
         .attr('y', (d) => this.scales.y(this.getBarDisplayVal(d.data[0][this.settings.props.y], this.scales.y)))
         .attr('x', (d) => this.scales.x(d.data[0][this.settings.props.x]))
         .attr('width', this.scales.x.bandwidth());
-        // .on('end', this.renderBarCI());
     };
 
     if (this.type === 'bar') {
@@ -293,7 +299,6 @@ export class GraphService {
           .duration(this.settings.transition.duration)
           .attr('height', (d) => Math.max(0, this.height - this.scales.y(d.data[0][this.settings.props.y])))
           .attr('y', (d) => this.scales.y(d.data[0][this.settings.props.y]));
-          // .on('end', this.renderBarCI());
     }
     this.renderBarCI();
     return this;
